@@ -138,4 +138,7 @@ WHISPER_MODEL_PATH = "./model/faster_whisper_turbo_v3_large"
 WHISPER_GCS_BUCKET = "test-images-image-qc"
 WHISPER_GCS_MODEL_PATH = "Video_QC/models/faster_whisper_turbo_v3_large"
 
+# Logging Config
+LOG_LEVEL = "INFO"  # DEBUG, INFO, WARNING, ERROR, CRITICAL
+
 

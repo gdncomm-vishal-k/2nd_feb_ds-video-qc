@@ -4,10 +4,10 @@ import logging
 import psutil
 import os
 import traceback
+from configs.config import LOG_LEVEL
 
-# Basic logging config
 logging.basicConfig(
-    level=logging.INFO,
+    level=getattr(logging, LOG_LEVEL, logging.INFO),
     format="%(asctime)s - %(levelname)s - %(message)s"
 )
 
@@ -20,7 +20,7 @@ def simple_logger(log_level=logging.INFO):
             process = psutil.Process(os.getpid())
 
             start_time = time.time()
-            start_memory = process.memory_info().rss / 1024 / 1024  # MB
+            start_memory = process.memory_info().rss / 1024 / 1024
 
             logger.log(log_level, f"CALLING: {func.__name__}")
 
@@ -49,7 +49,7 @@ def simple_logger(log_level=logging.INFO):
             process = psutil.Process(os.getpid())
 
             start_time = time.time()
-            start_memory = process.memory_info().rss / 1024 / 1024  # MB
+            start_memory = process.memory_info().rss / 1024 / 1024
 
             logger.log(log_level, f"CALLING: {func.__name__}")
 
@@ -65,7 +65,6 @@ def simple_logger(log_level=logging.INFO):
                     f"Time: {end_time - start_time:.4f}s | "
                     f"Memory Δ: {end_memory - start_memory:+.2f} MB"
                 )
-
                 return result
 
             except Exception as e:
@@ -73,7 +72,6 @@ def simple_logger(log_level=logging.INFO):
                 logger.debug(traceback.format_exc())
                 raise
 
-        # Return appropriate wrapper based on function type
         import asyncio
         if asyncio.iscoroutinefunction(func):
             return async_wrapper
