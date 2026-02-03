@@ -16,9 +16,6 @@ class WhisperModelSingleton:
     _lock = Lock()
 
     def __init__(self):
-        if WhisperModelSingleton._instance is not None:
-            raise RuntimeError("Use get_instance() instead")
-
         self.model = WhisperModel(
             WHISPER_MODEL_PATH,
             device=DEVICE,
@@ -29,7 +26,7 @@ class WhisperModelSingleton:
     def get_instance(cls):
         if cls._instance is None:
             with cls._lock:
-                if cls._instance is None:
+                if cls._instance is None:  # double-check
                     cls._instance = cls()
         return cls._instance
 
@@ -40,6 +37,7 @@ class WhisperModelSingleton:
             vad_filter=True
         )
         return " ".join(seg.text.strip() for seg in segments)
+
 
 @simple_logger()
 async def transcribe_audio(audio_path: str) -> str:

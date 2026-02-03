@@ -1,6 +1,6 @@
 import sys
 from pathlib import Path
-
+import re
 # Add src/ to path for components imports
 sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 # Add root to path for configs imports (go up 3 levels: image_qc_utils -> components -> src -> root)
@@ -10,7 +10,8 @@ import httpx
 import asyncio
 import logging
 from typing import Dict, List, Union, Tuple
-from configs.config import ENABLE_ILLEGAL_CIGARETTE_PREDICTION, IMAGE_QC_PREDICTION_BATCH_SIZE, VIDEO_QC_PREDICTION_MAP, PREDICTIONS
+from configs.config import PREDICTIONS, VIDEO_QC_PREDICTION_MAP
+from configs.config import IMAGE_QC_PREDICTION_BATCH_SIZE
 from components.image_qc_utils.clients import cigarette_api_post, tf_serving_post, torch_serving_post
 from components.image_qc_utils.image_qc_postprocessing import get_watermark_response, get_explicit_response, get_blur_response, get_text_ocr_response, get_logo_response, get_medicine_logo_response, get_restricted_keyword_response
 
@@ -151,7 +152,7 @@ def split_into_batches(items, batch_size):
         yield items[i : i + batch_size]
 
 
-async def predict_frames_in_batches(frame_urls):
+async def predict_frames_in_batches(frame_urls, url_mapping=None):
     if not frame_urls:
         raise RuntimeError("No frame URLs provided")
 
@@ -187,7 +188,8 @@ async def predict_frames_in_batches(frame_urls):
             }
         )
 
-    return summarize_video_qc_results(get_per_frame_results(frame_urls, override_cigarette_with_torch_ocr(all_batch_results)))
+    per_frame_results = get_per_frame_results(frame_urls, override_cigarette_with_torch_ocr(all_batch_results))
+    return summarize_video_qc_results(per_frame_results, url_mapping)
 
 
 def get_per_frame_results(frame_urls, batch_results):
@@ -259,7 +261,6 @@ def filter_predictions(frame_result, predictions_list, prediction_map):
 
 def get_frame_number(frame_name):
     """Extract frame number from frame name like 'frame_0005.jpg' -> 5"""
-    import re
     match = re.search(r'frame_(\d+)', frame_name)
     return int(match.group(1)) if match else 0
 
@@ -298,16 +299,17 @@ def group_consecutive_frames(frame_numbers):
     return result
 
 
-def summarize_video_qc_results(per_frame_results):
-    from configs.config import PREDICTIONS, VIDEO_QC_PREDICTION_MAP
+def summarize_video_qc_results(per_frame_results, url_mapping=None):
     
     summary = {pred: [] for pred in PREDICTIONS}
-    
-    # Collect flagged frames for each prediction type
     flagged_frames = {pred: [] for pred in PREDICTIONS}
     
-    for frame_name, frame_data in per_frame_results.items():
-        frame_num = get_frame_number(frame_name)
+    for frame_url, frame_data in per_frame_results.items():
+        # Get all original frame numbers for this distinct frame
+        if url_mapping and frame_url in url_mapping:
+            original_frames = url_mapping[frame_url]
+        else:
+            original_frames = [get_frame_number(frame_url)]
         
         # Check torch_serving predictions
         for key, value in frame_data.get("torch_serving", {}).items():
@@ -315,7 +317,7 @@ def summarize_video_qc_results(per_frame_results):
                 pred_type = value.get("predictionType", "")
                 mapped = VIDEO_QC_PREDICTION_MAP.get(pred_type)
                 if mapped in flagged_frames:
-                    flagged_frames[mapped].append(frame_num)
+                    flagged_frames[mapped].extend(original_frames)
         
         # Check tf_serving predictions
         for key, value in frame_data.get("tf_serving", {}).items():
@@ -323,7 +325,7 @@ def summarize_video_qc_results(per_frame_results):
                 pred_type = value.get("predictionType", "")
                 mapped = VIDEO_QC_PREDICTION_MAP.get(pred_type)
                 if mapped in flagged_frames:
-                    flagged_frames[mapped].append(frame_num)
+                    flagged_frames[mapped].extend(original_frames)
         
         # Check cigarette_service predictions
         for pred in frame_data.get("cigarette_service", []):
@@ -332,10 +334,11 @@ def summarize_video_qc_results(per_frame_results):
                 pred_type = pred.get("predictionType", "")
                 mapped = VIDEO_QC_PREDICTION_MAP.get(pred_type)
                 if mapped in flagged_frames:
-                    flagged_frames[mapped].append(frame_num)
+                    flagged_frames[mapped].extend(original_frames)
     
-    # Group consecutive frames into ranges
+    # Group consecutive frames into ranges (sorted and deduplicated)
     for pred in PREDICTIONS:
-        summary[pred] = group_consecutive_frames(flagged_frames[pred])
+        unique_frames = sorted(set(flagged_frames[pred]))
+        summary[pred] = group_consecutive_frames(unique_frames)
     
     return summary

@@ -62,6 +62,11 @@ async def download_video_to_disk(
     Returns:
         Absolute path of the saved video file
     """
+    
+    # Validate URL
+    parsed = urlparse(video_url)
+    if parsed.scheme not in ("http", "https"):
+        raise ValueError(f"Invalid URL scheme: {video_url}. Must be http or https.")
 
     video_name = get_video_name(video_url)
 
@@ -180,9 +185,11 @@ async def extract_frames_and_audio(
 
     return str(frames_dir), str(audio_path)
 
+def get_frame_number(frame_path: Path) -> int:
+    return int(frame_path.stem.split("_")[-1])
+
 @simple_logger()
 def get_globally_distinct_frames_pixel_only(frames_dir: str, diff_threshold: float = 10, resize_to=(128, 128)):
-
     frames_dir = Path(frames_dir)
     frame_files = sorted(frames_dir.glob("frame_*.jpg"))
 
@@ -190,27 +197,34 @@ def get_globally_distinct_frames_pixel_only(frames_dir: str, diff_threshold: flo
 
     signatures = []
     distinct_frames = []
+    frame_mapping = {} 
 
     for frame_path in frame_files:
+        frame_num = get_frame_number(frame_path)
+        
         img = (
             Image.open(frame_path)
             .convert("L")
             .resize(resize_to)
         )
-
         sig = np.asarray(img, dtype=np.float32)
 
-        is_duplicate = any(
-            np.mean(np.abs(sig - prev_sig)) <= diff_threshold
-            for prev_sig in signatures
-        )
+        matched_idx = None
+        for idx, prev_sig in enumerate(signatures):
+            if np.mean(np.abs(sig - prev_sig)) <= diff_threshold:
+                matched_idx = idx
+                break
 
-        if not is_duplicate:
+        if matched_idx is not None:
+            frame_mapping[distinct_frames[matched_idx]].append(frame_num)
+        else:
             signatures.append(sig)
             distinct_frames.append(frame_path)
+            frame_mapping[frame_path] = [frame_num]
 
     logging.info(f"Total number of distinct frames: {len(distinct_frames)}")
-    return distinct_frames
+    logging.info(f"Frame mapping: {frame_mapping}")
+    return distinct_frames, frame_mapping
 
 @simple_logger()
 async def process_video_pipeline(video_url, Videos_folder, chunks, fps, bucket, gcs_base_folder):
@@ -226,7 +240,7 @@ async def process_video_pipeline(video_url, Videos_folder, chunks, fps, bucket, 
         fps=fps
     )
 
-    distinct_frames = get_globally_distinct_frames_pixel_only(frames_dir)
+    distinct_frames, frame_mapping = get_globally_distinct_frames_pixel_only(frames_dir)
 
     urls = await upload_frames_to_gcs(      
         bucket=bucket,
@@ -234,5 +248,7 @@ async def process_video_pipeline(video_url, Videos_folder, chunks, fps, bucket, 
         video_name=video_name,
         frame_paths=distinct_frames,
     )
+    
+    url_mapping = {url: frame_mapping[path] for url, path in zip(urls, distinct_frames)}
 
-    return urls, audio_path
+    return urls, audio_path, url_mapping

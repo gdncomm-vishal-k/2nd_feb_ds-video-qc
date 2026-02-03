@@ -74,15 +74,6 @@ async def upload_frames_to_gcs(
     connector = aiohttp.TCPConnector(limit=max_concurrency)
     semaphore = asyncio.Semaphore(max_concurrency)
 
-    # Use provided frame_paths or fallback to all frames in folder
-    # if frame_paths is not None:
-    #     frame_files = frame_paths
-
-    # print(
-    #     f"Uploading {len(frame_files)} frames to "
-    #     f"gs://{bucket}/{gcs_base_folder}/{video_name}/"
-    # )
-
     async with aiohttp.ClientSession(
         headers=headers,
         timeout=timeout,

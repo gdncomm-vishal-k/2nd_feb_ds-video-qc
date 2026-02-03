@@ -11,6 +11,7 @@ TORCH_SERVING_API_HEALTH_CHECK_URL = "http://ds-image-qc-torch-serving.qa2-sg.cl
 CIGARETTE_API_REST_ADDR = "http://ds-cigarette-prediction-api.qa2-sg.cld/predict"
 CIGARETTE_API_HEALTH_CHECK_URL = "http://ds-cigarette-prediction-api.qa2-sg.cld/sys_info/health_check"
 
+
 PROB_THRESHOLD = {
     "blur": 2.5,
     "nsfw": 0.5,

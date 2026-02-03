@@ -21,22 +21,19 @@ async def process_audio_pipeline(audio_path):
 
 
 @simple_logger()
-async def validate_frames_with_audio_and_caption(frame_urls = None, audio_path = None, caption = None):
+async def validate_frames_with_audio_and_caption(frame_urls=None, audio_path=None, caption=None, url_mapping=None):
     if frame_urls is None:
         raise ValueError("Frame URLs are required")
-    
 
     tasks = [
         process_audio_pipeline(audio_path),
-        predict_frames_in_batches(frame_urls),
+        predict_frames_in_batches(frame_urls, url_mapping),
         validate_text_with_gemini(input_text=caption)
     ]
     results = await asyncio.gather(*tasks)
 
     audio_results, audio_qc_flag = results[0]
-
     frame_predictions = results[1]
-
     caption_results = results[2]
     caption_qc_flag = True if 'true' in caption_results.lower() else False
 
