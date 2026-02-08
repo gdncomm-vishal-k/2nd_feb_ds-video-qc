@@ -7,7 +7,7 @@ sys.path.insert(0, str(Path(__file__).parent.parent))
 sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 
 import shutil
-from schemas.schemas import VideoQCRequest, VideoQCResponse
+from schemas.schemas import VideoQCResponse
 from components.frame_X_audio_extraction import process_video_pipeline
 from components.frame_X_audio_validation import validate_frames_with_audio_and_caption
 from configs.config import VIDEO_QC_CHUNKS, VIDEO_QC_FPS, VIDEO_QC_BUCKET, VIDEO_QC_GCS_FOLDER, VIDEO_QC_TEMP_FOLDER, PREDICTIONS
@@ -31,12 +31,10 @@ async def run_video_qc_pipeline(request: dict) -> dict:
     Returns:
         VideoQCResponse as dict
     """
-    # 1. Validate request
-    validated_request = VideoQCRequest(**request)
     
-    # 2. Process video - extract frames and audio
+    # 1. Process video - extract frames and audio
     frame_urls, audio_path, url_mapping = await process_video_pipeline(
-        video_url=validated_request.video_path,
+        video_url=request.video_path,
         Videos_folder=VIDEO_QC_TEMP_FOLDER,
         chunks=VIDEO_QC_CHUNKS,
         fps=VIDEO_QC_FPS,
@@ -44,28 +42,28 @@ async def run_video_qc_pipeline(request: dict) -> dict:
         gcs_base_folder=VIDEO_QC_GCS_FOLDER
     )
     
-    # 3. Validate frames, audio, and caption
+    # 2. Validate frames, audio, and caption
     frame_predictions, audio_results, audio_qc_flag, caption_qc_flag, caption_results = await validate_frames_with_audio_and_caption(
         frame_urls=frame_urls,
         audio_path=audio_path,
-        caption=validated_request.caption,
+        caption=request.caption,
         url_mapping=url_mapping
     )
     
     # frame_predictions is already summarized from predict_frames_in_batches
     
-    # 4. Cleanup: delete video folder
+    # 3. Cleanup: delete video folder
     delete_video_folder(Path(audio_path).parent)
 
-    # 5. Build video_qc dynamically from PREDICTIONS config
+    # 4. Build video_qc dynamically from PREDICTIONS config
     video_qc = {pred: frame_predictions.get(pred, []) for pred in PREDICTIONS}
     
-    # 6. Build response
+    # 5. Build response
     response = {
-        "sku_id": validated_request.sku_id,
-        "caption": validated_request.caption,
-        "video_id": validated_request.video_id,
-        "video_path": validated_request.video_path,
+        "sku_id": request.sku_id,
+        "caption": request.caption,
+        "video_id": request.video_id,
+        "video_path": request.video_path,
         "video_qc": video_qc,
         "audio_qc": {
             "rejected": audio_qc_flag,
@@ -77,7 +75,9 @@ async def run_video_qc_pipeline(request: dict) -> dict:
         }
     }
     
-    # 7. Validate response schema
+    # 6. Validate response schema
     validated_response = VideoQCResponse(**response)
     
     return validated_response.model_dump()
+
+

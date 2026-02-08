@@ -13,12 +13,10 @@ import aiohttp
 import logging
 import numpy as np
 from PIL import Image
-from typing import List
 from datetime import datetime
 from urllib.parse import urlparse, unquote
 from components.gcs_upload import upload_frames_to_gcs
-
-import google.auth
+from configs.config import FRAME_DIFF_THRESHOLD, FRAME_RESIZE_TO
 from google.auth.transport.requests import Request
 
 from configs.logging import simple_logger
@@ -63,11 +61,6 @@ async def download_video_to_disk(
         Absolute path of the saved video file
     """
     
-    # Validate URL
-    parsed = urlparse(video_url)
-    if parsed.scheme not in ("http", "https"):
-        raise ValueError(f"Invalid URL scheme: {video_url}. Must be http or https.")
-
     video_name = get_video_name(video_url)
 
     # ---- timestamp (seconds + nanoseconds)
@@ -77,7 +70,7 @@ async def download_video_to_disk(
 
     folder_name = f"{timestamp}_{nano}_{video_name}"
 
-    base_dir = Path(Videos_folder).expanduser().resolve()
+    base_dir = Path(Videos_folder).expanduser()
     video_dir = base_dir / folder_name
     video_dir.mkdir(parents=True, exist_ok=True)
 
@@ -139,7 +132,7 @@ async def extract_frames_and_audio(
         (frames_dir_path, audio_file_path)
     """
 
-    video_path = Path(video_path).resolve()
+    video_path = Path(video_path).expanduser()
     video_dir = video_path.parent
 
     frames_dir = video_dir / "frames"
@@ -148,8 +141,6 @@ async def extract_frames_and_audio(
     audio_path = video_dir / "audio.wav"
 
     frame_pattern = str(frames_dir / "frame_%04d.jpg")
-
-    
 
     vf_filter = (
         f"fps={fps},"
@@ -240,7 +231,11 @@ async def process_video_pipeline(video_url, Videos_folder, chunks, fps, bucket, 
         fps=fps
     )
 
-    distinct_frames, frame_mapping = get_globally_distinct_frames_pixel_only(frames_dir)
+    distinct_frames, frame_mapping = get_globally_distinct_frames_pixel_only(
+        frames_dir=frames_dir,
+        diff_threshold=FRAME_DIFF_THRESHOLD,
+        resize_to=FRAME_RESIZE_TO
+    )
 
     urls = await upload_frames_to_gcs(      
         bucket=bucket,

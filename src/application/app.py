@@ -8,6 +8,8 @@ sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 
 import logging
 import aiohttp
+import asyncio
+from aiokafka.errors import KafkaError
 from fastapi import FastAPI, HTTPException
 from schemas.schemas import VideoQCRequest, VideoQCResponse
 from components.pipeline import run_video_qc_pipeline
@@ -16,6 +18,7 @@ from configs.config import (
     TORCH_SERVING_API_HEALTH_CHECK_URL,
     CIGARETTE_API_HEALTH_CHECK_URL
 )
+from configs.logging import simple_logger
 
 app = FastAPI(
     title="Video QC API",
@@ -23,6 +26,37 @@ app = FastAPI(
     version="1.0.0"
 )
 
+global pubsub, task
+
+@app.on_event("startup")
+async def on_startup():
+
+    # starting kafka process
+    logging.info("started kafka process.")
+
+    global pubsub, task
+    try:
+        pubsub = pubsub.PubSub(kafka_conf.consumer_topics, kafka_conf.producer_topic, process_batch_requests_from_kafka)
+        await pubsub.consumer.start()
+        await pubsub.producer.start()
+        task = asyncio.create_task(pubsub.start_consumer())
+        logging.debug("kafka task got created")
+    except KafkaError as e:
+        logging.error(e)
+        await pubsub.consumer.stop()
+        await pubsub.producer.stop()
+        raise Exception("stopping the server because kafka initialization failed")
+    logging.info("successfully started an async task for kafka consumption")
+
+
+
+
+@app.get("/sys-info/health")
+def health_check():
+    logging.info("inside health check url")
+    return {"Status": "Healthy"}
+
+@simple_logger()
 async def check_service(url: str) -> bool:
     try:
         async with aiohttp.ClientSession() as session:
@@ -31,30 +65,42 @@ async def check_service(url: str) -> bool:
     except Exception as e:
         raise Exception(f"Error checking service: {e}")
 
-@app.get("/health")
-async def health_check():
-    tf_serving = await check_service(TF_SERVING_API_HEALTH_CHECK_URL)
-    torch_serving = await check_service(TORCH_SERVING_API_HEALTH_CHECK_URL)
-    cigarette_api = await check_service(CIGARETTE_API_HEALTH_CHECK_URL)
-    
-    return cigarette_api, tf_serving, torch_serving
+@simple_logger()
+@app.get("/sys-info/dependent-services-health-check")
+async def dependent_services_health_check():
+    """
+    Check the health of the dependent services.
+    Returns:
+        Dictionary with the health of the dependent services.
+    """
+    tasks = [
+        check_service(TF_SERVING_API_HEALTH_CHECK_URL),
+        check_service(TORCH_SERVING_API_HEALTH_CHECK_URL),
+        check_service(CIGARETTE_API_HEALTH_CHECK_URL)
+    ]
+    results = await asyncio.gather(*tasks)
+    return {
+        "cigarette_api": results[0],
+        "tf_serving": results[1],
+        "torch_serving": results[2]
+    }
 
 @app.post("/predict", response_model=VideoQCResponse)
 async def predict(request: VideoQCRequest):
     try:
-        cig_api_healthy, tf_serving_healthy, torch_serving_healthy = await health_check()
-        if cig_api_healthy and tf_serving_healthy and torch_serving_healthy:
+        dependent_services_health = await dependent_services_health_check()
+        if dependent_services_health.get('cigarette_api') and dependent_services_health.get('tf_serving') and dependent_services_health.get('torch_serving'):
             logging.info(f"Request: {request.model_dump()}")
-            response = await run_video_qc_pipeline(request.model_dump())
+            response = await run_video_qc_pipeline(request)
             logging.info(f"Response: {response}")
             return response
         else:
             raise HTTPException(
                 500,
                 "One or more dependent services are unhealthy. "
-                f"Cigarette API: {cig_api_healthy}, "
-                f"TF Serving: {tf_serving_healthy}, "
-                f"Torch Serving: {torch_serving_healthy}"
+                f"Cigarette API: {dependent_services_health.get('cigarette_api')}, "
+                f"TF Serving: {dependent_services_health.get('tf_serving')}, "
+                f"Torch Serving: {dependent_services_health.get('torch_serving')}"
             )
 
     except Exception as e:

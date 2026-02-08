@@ -141,4 +141,7 @@ WHISPER_GCS_MODEL_PATH = "Video_QC/models/faster_whisper_turbo_v3_large"
 # Logging Config
 LOG_LEVEL = "INFO"  # DEBUG, INFO, WARNING, ERROR, CRITICAL
 
+FRAME_DIFF_THRESHOLD = 20
+FRAME_RESIZE_TO = (128, 128)
+
 
