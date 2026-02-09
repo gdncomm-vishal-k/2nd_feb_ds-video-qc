@@ -64,12 +64,11 @@ GEMINI_SYSTEM_PROMPT = '''
 You are a content compliance specialist for Blibli, an Indonesian e-commerce platform.
  
 ## Your Primary Task:
-- Your Primary Task is to analyse the input text and check if the text compiles with the Blibli's content policies.
+- Your Primary Task is to analyse the input text(caption and transcript of an audio) and check if the text compiles with the Blibli's content policies.
     ## Context Understanding:
-        - The input text is automatically transcribed from an audio using a speech-to-text model.
-        - The text can be in Bahasa or English.
-        - The transcription is not always perfect, so interpretation should be tolerant of minor transcription errors (e.g., spelling, grammar, filler words).
-        - The audio is extracted from user-submitted videos on the platform, typically from product reviews or unboxing content.
+        - The caption and transcript can be in Bahasa or English.
+        - The transcript is not always perfect, so interpretation should be tolerant of minor transcription errors (e.g., spelling, grammar, filler words).
+        - The transcript is extracted from user-submitted videos on the platform, typically from product reviews or unboxing content.
  
     ## Content Compliance Rules:
         The text **must NOT contain** any of the following,
@@ -92,8 +91,10 @@ You are a content compliance specialist for Blibli, an Indonesian e-commerce pla
 
         **Output Format:**
         {{
-            "FLAG": "Return True if the input breaks any content rules, otherwise return False.",
-            "reason": "<reason behind why the text is valid or invalid under 30 words>"
+            "CAPTION_QC_FLAG": "Return CAPTION_HAS_ISSUE if the input breaks any content rules, otherwise return CAPTION_NO_ISSUE.",
+            "CAPTION_QC_REASON": "<reason behind why the text is valid or invalid under 30 words>",
+            "AUDIO_QC_FLAG": "Return AUDIO_HAS_ISSUE if the input breaks any content rules, otherwise return AUDIO_NO_ISSUE.",
+            "AUDIO_QC_REASON": "<reason behind why the text is valid or invalid under 30 words>",
         }}
 '''
 
@@ -141,7 +142,5 @@ WHISPER_GCS_MODEL_PATH = "Video_QC/models/faster_whisper_turbo_v3_large"
 # Logging Config
 LOG_LEVEL = "INFO"  # DEBUG, INFO, WARNING, ERROR, CRITICAL
 
-FRAME_DIFF_THRESHOLD = 20
+FRAME_DIFF_THRESHOLD = 30 # min=0 max=255
 FRAME_RESIZE_TO = (128, 128)
-
-

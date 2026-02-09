@@ -1,5 +1,5 @@
 from typing import List, Dict
-from pydantic import BaseModel, Field, validator
+from pydantic import BaseModel, Field, field_validator
 import re
 
 # Request Schema
@@ -9,13 +9,15 @@ class VideoQCRequest(BaseModel):
     video_id: str
     video_path: str
 
-    @validator("sku_id")
+    @field_validator("sku_id")
+    @classmethod
     def validate_sku_id_count(cls, sku_id):
         if len(sku_id) > 30:
             raise ValueError("sku_id must not contain more than 30 items")
         return sku_id
 
-    @validator("caption")
+    @field_validator("caption")
+    @classmethod
     def validate_caption_text(cls, caption_text):
         if not isinstance(caption_text, str):
             raise ValueError("caption_text must be a string")
@@ -23,7 +25,8 @@ class VideoQCRequest(BaseModel):
             raise ValueError("caption_text must contain only letters and spaces")
         return caption_text
 
-    @validator("video_id")
+    @field_validator("video_id")
+    @classmethod
     def validate_video_id_constraints(cls, video_id):
         if not video_id.strip():
             raise ValueError("video_id must not be empty")
@@ -31,7 +34,8 @@ class VideoQCRequest(BaseModel):
             raise ValueError("video_id must not exceed 256 characters")
         return video_id
 
-    @validator("video_path")
+    @field_validator("video_path")
+    @classmethod
     def validate_video_path_constraints(cls, video_path):
         if len(video_path) > 4096:
             raise ValueError("video_path must not exceed 4096 characters")

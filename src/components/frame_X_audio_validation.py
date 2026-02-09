@@ -1,4 +1,6 @@
 import sys
+import json
+import logging
 from pathlib import Path
 
 # Add src/ to path for components imports
@@ -13,11 +15,38 @@ from components.image_qc_utils.image_qc_predictions import predict_frames_in_bat
 from configs.logging import simple_logger
 
 @simple_logger()
-async def process_audio_pipeline(audio_path):
+def get_gemini_input_text(transcript: str, caption: str) -> str:
+    return f"Transcript: {transcript}\nCaption: {caption}"
+
+@simple_logger()
+def get_llm_response_and_flag(gemini_results: str):
+    logging.info(f"Gemini results: {gemini_results}")
+    postprocess_gemini_results = gemini_results.replace("`","").replace("json","")
+    logging.info(f"Postprocess Gemini results: {postprocess_gemini_results}")
+    try:
+        postprocess_gemini_results = json.loads(postprocess_gemini_results)
+        caption_llm_response = postprocess_gemini_results.get('CAPTION_QC_REASON', gemini_results)
+        audio_llm_response = postprocess_gemini_results.get('AUDIO_QC_REASON', gemini_results)
+        return caption_llm_response, \
+            True if 'CAPTION_HAS_ISSUE' in gemini_results else False, \
+            audio_llm_response, \
+            True if 'AUDIO_HAS_ISSUE' in gemini_results else False
+    except Exception as e:
+        logging.error(f"Error parsing Gemini results: {e}")
+        return gemini_results, \
+            True if 'CAPTION_HAS_ISSUE' in gemini_results else False, \
+            gemini_results, \
+            True if 'AUDIO_HAS_ISSUE' in gemini_results else False
+
+
+
+@simple_logger()
+async def process_audio_and_caption_pipeline(audio_path , caption):
     transcript = await transcribe_audio(audio_path)
-    gemini_results = await validate_text_with_gemini(input_text=transcript)
-    audio_qc_flag = True if 'true' in gemini_results.lower() else False
-    return gemini_results, audio_qc_flag
+    gemini_input_text = get_gemini_input_text(transcript ,caption)
+    gemini_results = await validate_text_with_gemini(input_text=gemini_input_text)
+    caption_llm_response , caption_qc_flag, audio_llm_response , audio_qc_flag = get_llm_response_and_flag(gemini_results)
+    return audio_llm_response, audio_qc_flag, caption_llm_response, caption_qc_flag
 
 
 @simple_logger()
@@ -26,18 +55,15 @@ async def validate_frames_with_audio_and_caption(frame_urls=None, audio_path=Non
         raise ValueError("Frame URLs are required")
 
     tasks = [
-        process_audio_pipeline(audio_path),
+        process_audio_and_caption_pipeline(audio_path, caption),
         predict_frames_in_batches(frame_urls, url_mapping),
-        validate_text_with_gemini(input_text=caption)
     ]
     results = await asyncio.gather(*tasks)
 
-    audio_results, audio_qc_flag = results[0]
+    audio_llm_response, audio_qc_flag, caption_llm_response, caption_qc_flag = results[0]
     frame_predictions = results[1]
-    caption_results = results[2]
-    caption_qc_flag = True if 'true' in caption_results.lower() else False
 
-    return frame_predictions, audio_results, audio_qc_flag, caption_qc_flag, caption_results
+    return frame_predictions, audio_llm_response, audio_qc_flag, caption_qc_flag, caption_llm_response
 
 
 
