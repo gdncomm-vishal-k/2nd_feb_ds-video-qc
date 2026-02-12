@@ -19,8 +19,6 @@ class VideoQCRequest(BaseModel):
     def validate_caption_text(cls, caption_text):
         if not isinstance(caption_text, str):
             raise ValueError("caption_text must be a string")
-        if caption_text and not re.fullmatch(r"[A-Za-z\s]*", caption_text):
-            raise ValueError("caption_text must contain only letters and spaces")
         return caption_text
 
     @validator("video_id")

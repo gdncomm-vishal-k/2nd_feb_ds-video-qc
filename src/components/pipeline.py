@@ -7,7 +7,8 @@ sys.path.insert(0, str(Path(__file__).parent.parent))
 sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 
 import shutil
-from schemas.schemas import VideoQCResponse
+import asyncio
+from schemas.schemas import VideoQCResponse, VideoQCRequest
 from components.frame_X_audio_extraction import process_video_pipeline
 from components.frame_X_audio_validation import validate_frames_with_audio_and_caption
 from configs.config import VIDEO_QC_CHUNKS, VIDEO_QC_FPS, VIDEO_QC_BUCKET, VIDEO_QC_GCS_FOLDER, VIDEO_QC_TEMP_FOLDER, PREDICTIONS
@@ -21,12 +22,12 @@ def delete_video_folder(video_folder: Path):
         raise Exception(f"Error deleting video folder: {e}")
 
 @simple_logger()
-async def run_video_qc_pipeline(request: dict) -> dict:
+async def run_video_qc_pipeline(request: VideoQCRequest) -> dict:
     """
     Main pipeline for Video QC processing.
     
     Args:
-        request: Dict with sku_id, caption, video_id, video_path
+        request: VideoQCRequest with sku_id, caption, video_id, video_path
     
     Returns:
         VideoQCResponse as dict
@@ -79,5 +80,15 @@ async def run_video_qc_pipeline(request: dict) -> dict:
     validated_response = VideoQCResponse(**response)
     
     return validated_response.model_dump()
+
+@simple_logger()
+async def process_batch_requests_from_kafka(requests: list[dict]) -> list[dict]:
+    responses = []
+    tasks = []
+    for request in requests:
+        request = VideoQCRequest(**request)
+        tasks.append(asyncio.create_task(run_video_qc_pipeline(request)))
+    responses = await asyncio.gather(*tasks)
+    return responses
 
 

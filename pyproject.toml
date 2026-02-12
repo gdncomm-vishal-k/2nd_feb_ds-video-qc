@@ -41,3 +41,6 @@ pytest-cov = "4.1.0"
 asyncio_mode = "auto"
 testpaths = ["tests"]
 pythonpath = ["src", "configs", "."]
+markers = [
+    "integration: marks tests that call real pipeline / external services (deselect with -m 'not integration')",
+]

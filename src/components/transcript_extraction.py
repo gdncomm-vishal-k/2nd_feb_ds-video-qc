@@ -24,17 +24,17 @@ class WhisperModelSingleton:
 
     @classmethod
     def get_instance(cls):
-        if cls._instance is None:
-            with cls._lock:
-                if cls._instance is None:  # double-check
-                    cls._instance = cls()
+        with cls._lock:
+            if cls._instance is None:
+                cls._instance = cls()
         return cls._instance
 
     def transcribe(self, audio_path: str) -> str:
         segments, _ = self.model.transcribe(
             audio_path,
             beam_size=1,
-            vad_filter=True
+            vad_filter=True,
+            language="en"
         )
         return " ".join(seg.text.strip() for seg in segments)
 

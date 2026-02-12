@@ -9,44 +9,55 @@ sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 import logging
 import aiohttp
 import asyncio
-# from aiokafka.errors import KafkaError
+from aiokafka.errors import KafkaError
 from fastapi import FastAPI, HTTPException
+from components import pub_sub
 from schemas.schemas import VideoQCRequest, VideoQCResponse
-from components.pipeline import run_video_qc_pipeline
+from components.pipeline import run_video_qc_pipeline, process_batch_requests_from_kafka
 from configs.config import (
     TF_SERVING_API_HEALTH_CHECK_URL,
     TORCH_SERVING_API_HEALTH_CHECK_URL,
     CIGARETTE_API_HEALTH_CHECK_URL
 )
 from configs.logging import simple_logger
-
+from configs.kafka_config import consumer_topics, producer_topic
+from components.pub_sub import PubSub
 app = FastAPI(
     title="Video QC API",
     description="API for Video Quality Control processing",
     version="1.0.0"
 )
 
-# global pubsub, task
+global pubsub, task
 
-# @app.on_event("startup")
-# async def on_startup():
+@app.on_event("startup")
+async def on_startup():
+    logging.info("started kafka process.")
 
-#     # starting kafka process
-#     logging.info("started kafka process.")
+    global pubsub, task
+    try:
+        pubsub = pub_sub.PubSub(consumer_topics, producer_topic, process_batch_requests_from_kafka)
+        await pubsub.consumer.start()
+        await pubsub.producer.start()
+        task = asyncio.create_task(pubsub.start_consumer())
+        logging.debug("kafka task got created")
+    except KafkaError as e:
+        logging.error(e)
+        await pubsub.consumer.stop()
+        await pubsub.producer.stop()
+        raise Exception("stopping the server because kafka initialization failed")
+    logging.info("successfully started an async task for kafka consumption")
 
-#     global pubsub, task
-#     try:
-#         pubsub = pubsub.PubSub(kafka_conf.consumer_topics, kafka_conf.producer_topic, process_batch_requests_from_kafka)
-#         await pubsub.consumer.start()
-#         await pubsub.producer.start()
-#         task = asyncio.create_task(pubsub.start_consumer())
-#         logging.debug("kafka task got created")
-#     except KafkaError as e:
-#         logging.error(e)
-#         await pubsub.consumer.stop()
-#         await pubsub.producer.stop()
-#         raise Exception("stopping the server because kafka initialization failed")
-#     logging.info("successfully started an async task for kafka consumption")
+@app.on_event("shutdown")
+async def on_app_exit():
+
+    logging.info("shutting down the kafka consumer task")
+    global task, pubsub
+    if task is not None:
+        task.cancel()
+    if pubsub is not None:
+        await pubsub.consumer.stop()
+        await pubsub.producer.stop()
 
 
 
@@ -80,9 +91,9 @@ async def dependent_services_health_check():
     ]
     results = await asyncio.gather(*tasks)
     return {
-        "cigarette_api": results[0],
-        "tf_serving": results[1],
-        "torch_serving": results[2]
+        "tf_serving": results[0],
+        "torch_serving" : results[1],
+        "cigarette_api": results[2],
     }
 
 @app.post("/predict", response_model=VideoQCResponse)

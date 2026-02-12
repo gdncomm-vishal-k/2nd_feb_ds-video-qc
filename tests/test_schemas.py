@@ -1,164 +1,148 @@
-"""Tests for schemas (request/response models)."""
+"""
+Tests for src/schemas/schemas.py.
+Uses real request/response examples; no mocks. Import schemas, build instances, assert.
+"""
+
 import pytest
 from pydantic import ValidationError
 
 from schemas.schemas import (
-    VideoQCRequest,
-    VideoQCResponse,
     AudioQC,
     CaptionQC,
+    VideoQCRequest,
+    VideoQCResponse,
 )
 
+# ----- Realistic samples (from your examples) -----
 
-# --- VideoQCRequest ---
+VALID_REQUEST = {
+    "sku_id": ["BRO-70057-00002-00001", "BRO-70057-00002-00002"],
+    "caption": "bullshit",
+    "video_id": "a66e342b-f4bf-471c-8810-e1157a8e677e",
+    "video_path": "https://storage.googleapis.com/test-images-image-qc/Video_QC/sample_videos/(FMU)%20Buttonscarves%20Champ%20de%20Fleurs%20Voile%20Square%20-%20Tabebuya_Reels-REVISI.mp4",
+}
+
+VALID_RESPONSE = {
+    "sku_id": ["BRO-70057-00002-00001", "BRO-70057-00002-00002"],
+    "caption": "bullshit",
+    "video_id": "a66e342b-f4bf-471c-8810-e1157a8e677e",
+    "video_path": "https://storage.googleapis.com/test-images-image-qc/Video_QC/sample_videos/(FMU)%20Buttonscarves%20Champ%20de%20Fleurs%20Voile%20Square%20-%20Tabebuya_Reels-REVISI.mp4",
+    "video_qc": {
+        "pharma_banned": [],
+        "pharma_prescription": [],
+        "competitor_logo": [],
+        "nsfw": [],
+        "cigarette": [],
+        "alcohol": [],
+        "guns": [],
+        "blur": ["1-18"],
+        "text_predictions": [],
+        "water_mark": [],
+    },
+    "audio_qc": {
+        "rejected": False,
+        "rejected_reason": "The audio transcript does not contain any prohibited words or phrases.",
+    },
+    "caption_qc": {
+        "rejected": True,
+        "rejected_reason": "The caption contains the prohibited word 'bullshit'.",
+    },
+}
 
 
+# ---------------------------------------------------------------------------
+# VideoQCRequest – valid
+# ---------------------------------------------------------------------------
 def test_video_qc_request_valid():
-    req = VideoQCRequest(
-        sku_id=["sku1"],
-        caption="Hello world",
-        video_id="vid123",
-        video_path="https://example.com/video.mp4",
-    )
-    assert req.sku_id == ["sku1"]
-    assert req.caption == "Hello world"
-    assert req.video_id == "vid123"
-    assert req.video_path == "https://example.com/video.mp4"
+    req = VideoQCRequest(**VALID_REQUEST)
+    assert req.sku_id == VALID_REQUEST["sku_id"]
+    assert req.caption == VALID_REQUEST["caption"]
+    assert req.video_id == VALID_REQUEST["video_id"]
+    assert req.video_path == VALID_REQUEST["video_path"]
 
 
-def test_video_qc_request_caption_empty_allowed():
-    req = VideoQCRequest(
-        sku_id=["s"],
-        caption="",
-        video_id="v",
-        video_path="http://a.b/c",
-    )
+def test_video_qc_request_caption_empty_default():
+    data = {**VALID_REQUEST, "caption": ""}
+    req = VideoQCRequest(**data)
     assert req.caption == ""
 
 
-def test_video_qc_request_sku_id_max_30():
-    req = VideoQCRequest(
-        sku_id=[f"s{i}" for i in range(30)],
-        caption="",
-        video_id="v",
-        video_path="https://a/b",
-    )
-    assert len(req.sku_id) == 30
+def test_video_qc_request_caption_any_string():
+    """Caption only validated as string; digits/symbols allowed (per current schema)."""
+    data = {**VALID_REQUEST, "caption": "hello123 and symbols! @#"}
+    req = VideoQCRequest(**data)
+    assert req.caption == "hello123 and symbols! @#"
 
 
-def test_video_qc_request_sku_id_more_than_30_raises():
-    with pytest.raises(ValidationError) as exc:
-        VideoQCRequest(
-            sku_id=[f"s{i}" for i in range(31)],
-            caption="",
-            video_id="v",
-            video_path="https://a/b",
-        )
-    assert "30" in str(exc.value)
-
-
-def test_video_qc_request_caption_invalid_chars_raises():
+# ---------------------------------------------------------------------------
+# VideoQCRequest – invalid (validation errors)
+# ---------------------------------------------------------------------------
+def test_video_qc_request_invalid_sku_id_too_many():
+    data = {**VALID_REQUEST, "sku_id": [f"SKU-{i}" for i in range(31)]}
     with pytest.raises(ValidationError):
-        VideoQCRequest(
-            sku_id=["s"],
-            caption="Hello 123",
-            video_id="v",
-            video_path="https://a/b",
-        )
+        VideoQCRequest(**data)
 
 
-def test_video_qc_request_caption_letters_and_spaces_only():
-    req = VideoQCRequest(
-        sku_id=["s"],
-        caption="Abc Def",
-        video_id="v",
-        video_path="https://a/b",
-    )
-    assert req.caption == "Abc Def"
-
-
-def test_video_qc_request_video_id_empty_raises():
+def test_video_qc_request_invalid_video_id_empty():
+    data = {**VALID_REQUEST, "video_id": "   "}
     with pytest.raises(ValidationError):
-        VideoQCRequest(
-            sku_id=["s"],
-            caption="",
-            video_id="   ",
-            video_path="https://a/b",
-        )
+        VideoQCRequest(**data)
 
 
-def test_video_qc_request_video_id_over_256_raises():
+def test_video_qc_request_invalid_video_id_too_long():
+    data = {**VALID_REQUEST, "video_id": "x" * 257}
     with pytest.raises(ValidationError):
-        VideoQCRequest(
-            sku_id=["s"],
-            caption="",
-            video_id="x" * 257,
-            video_path="https://a/b",
-        )
+        VideoQCRequest(**data)
 
 
-def test_video_qc_request_video_path_over_4096_raises():
+def test_video_qc_request_invalid_video_path_not_http():
+    data = {**VALID_REQUEST, "video_path": "ftp://example.com/video.mp4"}
     with pytest.raises(ValidationError):
-        VideoQCRequest(
-            sku_id=["s"],
-            caption="",
-            video_id="v",
-            video_path="https://" + "a" * 4090,
-        )
+        VideoQCRequest(**data)
 
 
-def test_video_qc_request_video_path_must_start_http_or_https():
+def test_video_qc_request_invalid_video_path_too_long():
+    data = {**VALID_REQUEST, "video_path": "https://x.co/" + "a" * 4090}
     with pytest.raises(ValidationError):
-        VideoQCRequest(
-            sku_id=["s"],
-            caption="",
-            video_id="v",
-            video_path="ftp://example.com/v.mp4",
-        )
+        VideoQCRequest(**data)
 
 
-def test_video_qc_request_video_path_http_ok():
-    req = VideoQCRequest(
-        sku_id=["s"],
-        caption="",
-        video_id="v",
-        video_path="http://example.com/v.mp4",
-    )
-    assert req.video_path.startswith("http://")
+# ---------------------------------------------------------------------------
+# AudioQC
+# ---------------------------------------------------------------------------
+def test_audio_qc_valid():
+    audio = AudioQC(rejected=False, rejected_reason="No issues.")
+    assert audio.rejected is False
+    assert audio.rejected_reason == "No issues."
 
 
-# --- AudioQC / CaptionQC ---
+def test_audio_qc_rejected_reason_default():
+    audio = AudioQC(rejected=True)
+    assert audio.rejected is True
+    assert audio.rejected_reason == ""
 
 
-def test_audio_qc():
-    a = AudioQC(rejected=True, rejected_reason="bad")
-    assert a.rejected is True
-    assert a.rejected_reason == "bad"
+# ---------------------------------------------------------------------------
+# CaptionQC
+# ---------------------------------------------------------------------------
+def test_caption_qc_valid():
+    caption = CaptionQC(rejected=True, rejected_reason="Prohibited word.")
+    assert caption.rejected is True
+    assert caption.rejected_reason == "Prohibited word."
 
 
-def test_audio_qc_default_reason():
-    a = AudioQC(rejected=False)
-    assert a.rejected_reason == ""
-
-
-def test_caption_qc():
-    c = CaptionQC(rejected=False, rejected_reason="")
-    assert c.rejected is False
-
-
-# --- VideoQCResponse ---
-
-
+# ---------------------------------------------------------------------------
+# VideoQCResponse – valid (realistic response)
+# ---------------------------------------------------------------------------
 def test_video_qc_response_valid():
-    resp = VideoQCResponse(
-        sku_id=["s1"],
-        caption="Cap",
-        video_id="v1",
-        video_path="https://x/y",
-        video_qc={"blur": ["1-3"], "nsfw": []},
-        audio_qc=AudioQC(rejected=False, rejected_reason=""),
-        caption_qc=CaptionQC(rejected=False, rejected_reason=""),
-    )
-    assert resp.sku_id == ["s1"]
-    assert resp.video_qc["blur"] == ["1-3"]
+    resp = VideoQCResponse(**VALID_RESPONSE)
+    assert resp.sku_id == VALID_RESPONSE["sku_id"]
+    assert resp.caption == VALID_RESPONSE["caption"]
+    assert resp.video_id == VALID_RESPONSE["video_id"]
+    assert resp.video_path == VALID_RESPONSE["video_path"]
+    assert resp.video_qc == VALID_RESPONSE["video_qc"]
+    assert resp.video_qc["blur"] == ["1-18"]
     assert resp.audio_qc.rejected is False
+    assert "prohibited" in resp.audio_qc.rejected_reason.lower()
+    assert resp.caption_qc.rejected is True
+    assert "bullshit" in resp.caption_qc.rejected_reason.lower()
