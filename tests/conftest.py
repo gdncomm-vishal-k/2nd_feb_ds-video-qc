@@ -25,8 +25,9 @@ from fastapi.testclient import TestClient
 # ----- SAMPLE REQUEST DATA -----
 # This is a real example of the JSON body our API expects for POST /predict.
 # We use it in tests so we don't have to type it in every test; we just refer to SAMPLE_VIDEO_QC_REQUEST.
-# Keys must match what the API expects: sku_id (list), caption, video_id, video_path.
+# Keys must match what the API expects: request_id, sku_id (list), caption, video_id, video_path.
 SAMPLE_VIDEO_QC_REQUEST = {
+    "request_id": "12345678910",
     "sku_id": [
         "BRO-70057-00002-00001",
         "BRO-70057-00002-00002",

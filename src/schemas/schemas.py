@@ -1,13 +1,21 @@
-from typing import List, Dict
+from typing import List, Dict, Optional
 from pydantic import BaseModel, Field, validator
 import re
 
 # Request Schema
 class VideoQCRequest(BaseModel):
+    request_id: str
     sku_id: List[str]
     caption: str = ""
     video_id: str
     video_path: str
+
+    @validator("request_id")
+    def validate_request_id(cls, value):
+        stripped_value = value.strip()
+        if not stripped_value:
+            raise ValueError("request_id cannot be empty or only whitespace")
+        return stripped_value
 
     @validator("sku_id")
     def validate_sku_id_count(cls, sku_id):
@@ -41,15 +49,16 @@ class VideoQCRequest(BaseModel):
 # Response Schemas
 class AudioQC(BaseModel):
     rejected: bool
-    rejected_reason: str = ""
+    rejected_words: List[Optional[str]] = [None]
 
 
 class CaptionQC(BaseModel):
     rejected: bool
-    rejected_reason: str = ""
+    rejected_words: List[Optional[str]] = [None]
 
 
 class VideoQCResponse(BaseModel):
+    request_id: str
     sku_id: List[str]
     caption: str
     video_id: str

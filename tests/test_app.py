@@ -52,6 +52,7 @@ async def test_predict_success(sample_video_qc_request):
     response = await predict(request)
     print(response)
     # predict() returns a dict (from pipeline), not a Pydantic model – use dict keys
+    assert response["request_id"] == sample_video_qc_request["request_id"]
     assert response["video_id"] == sample_video_qc_request["video_id"]
     assert response["sku_id"] == sample_video_qc_request["sku_id"]
     assert "video_qc" in response and "audio_qc" in response and "caption_qc" in response

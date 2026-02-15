@@ -5,9 +5,11 @@ build-backend = "poetry.core.masonry.api"
 [tool.poetry]
 name = "ds-video-qc"
 version = "1.0.0"
-description = "Video Quality Control API for processing and validating video content"
-readme = "README.md"
-authors = []  # Add your name/email if desired
+description = "Video Quality Control API for processing and validating video content."
+authors = [
+    "Vishal Kumar <vishal.k@gdn-commerce.com>",
+    "Tushar Gupta <tushar.gupta@gdn-commerce.com>"
+]
 packages = [
     { include = "src" },
     { include = "configs" },
@@ -16,26 +18,31 @@ packages = [
 [tool.poetry.dependencies]
 python = ">=3.9,<3.13"
 # Web framework & server
-fastapi = "0.115.5"
-uvicorn = { version = "0.32.1", extras = ["standard"] }
+fastapi = ">=0.115"
+uvicorn = { version = ">=0.32", extras = ["standard"] }
+gunicorn = ">=23.0"
 # Async HTTP
-aiohttp = "3.10.10"
-httpx = "0.27.2"
+aiohttp = ">=3.10"
+httpx = ">=0.27"
 # Validation & schemas
-pydantic = "2.10.2"
+pydantic = ">=2.10"
 # Image & numerical
-numpy = "1.26.4"
-Pillow = "10.4.0"
+numpy = ">=1.26"
+Pillow = ">=10.4"
 # Google Cloud (auth + Vertex AI / Gemini)
-google-auth = "2.36.0"
-vertexai = "1.71.1"
+google-auth = ">=2.36"
+vertexai = ">=1.71"
 # Speech-to-text
-faster-whisper = "1.0.3"
+faster-whisper = ">=1.0"
+# Kafka
+aiokafka = ">=0.11"
+# Utilities
+psutil = ">=5.9"
 
 [tool.poetry.group.dev.dependencies]
-pytest = "8.3.4"
-pytest-asyncio = "0.24.0"
-pytest-cov = "4.1.0"
+pytest = ">=8.3"
+pytest-asyncio = ">=0.24"
+pytest-cov = ">=4.1"
 
 [tool.pytest.ini_options]
 asyncio_mode = "auto"

@@ -13,10 +13,37 @@ from conftest import SAMPLE_VIDEO_QC_REQUEST
 from schemas.schemas import VideoQCRequest
 
 from components.pipeline import (
+    _rejected_words_to_list,
     delete_video_folder,
     process_batch_requests_from_kafka,
     run_video_qc_pipeline,
 )
+
+
+# ---------------------------------------------------------------------------
+# _rejected_words_to_list
+# ---------------------------------------------------------------------------
+def test_rejected_words_to_list_none():
+    assert _rejected_words_to_list(None) == [None]
+
+
+def test_rejected_words_to_list_string_none():
+    assert _rejected_words_to_list("None") == [None]
+    assert _rejected_words_to_list("  NONE  ") == [None]
+
+
+def test_rejected_words_to_list_single_word():
+    assert _rejected_words_to_list("bullshit") == ["bullshit"]
+
+
+def test_rejected_words_to_list_comma_separated():
+    assert _rejected_words_to_list("bullshit, dick") == ["bullshit", "dick"]
+    assert _rejected_words_to_list("a, b , c") == ["a", "b", "c"]
+
+
+def test_rejected_words_to_list_empty_string():
+    assert _rejected_words_to_list("") == [None]
+    assert _rejected_words_to_list("  ,  , ") == [None]
 
 
 # ---------------------------------------------------------------------------
@@ -56,6 +83,7 @@ async def test_run_video_qc_pipeline_returns_response_dict(sample_video_qc_reque
     result = await run_video_qc_pipeline(request)
 
     assert isinstance(result, dict)
+    assert result["request_id"] == sample_video_qc_request["request_id"]
     assert result["sku_id"] == sample_video_qc_request["sku_id"]
     assert result["video_id"] == sample_video_qc_request["video_id"]
     assert result["caption"] == sample_video_qc_request["caption"]
@@ -79,5 +107,6 @@ async def test_process_batch_requests_from_kafka_returns_list_of_responses():
     assert isinstance(responses, list)
     assert len(responses) == 1
     r = responses[0]
+    assert r["request_id"] == SAMPLE_VIDEO_QC_REQUEST["request_id"]
     assert r["video_id"] == SAMPLE_VIDEO_QC_REQUEST["video_id"]
     assert "video_qc" in r and "audio_qc" in r and "caption_qc" in r

@@ -14,6 +14,17 @@ from components.frame_X_audio_validation import validate_frames_with_audio_and_c
 from configs.config import VIDEO_QC_CHUNKS, VIDEO_QC_FPS, VIDEO_QC_BUCKET, VIDEO_QC_GCS_FOLDER, VIDEO_QC_TEMP_FOLDER, PREDICTIONS
 from configs.logging import simple_logger
 
+
+def _rejected_words_to_list(value):
+    """Convert rejected_words string to list: [None] for None/'None', else ['word1', 'word2']."""
+    if value is None or (isinstance(value, str) and value.strip().lower() == "none"):
+        return [None]
+    if isinstance(value, str):
+        parts = [p.strip() for p in value.split(",") if p.strip()]
+        return parts if parts else [None]
+    return [None]
+
+
 @simple_logger()
 def delete_video_folder(video_folder: Path):
     try:
@@ -61,6 +72,7 @@ async def run_video_qc_pipeline(request: VideoQCRequest) -> dict:
     
     # 5. Build response
     response = {
+        "request_id": request.request_id,
         "sku_id": request.sku_id,
         "caption": request.caption,
         "video_id": request.video_id,
@@ -68,11 +80,11 @@ async def run_video_qc_pipeline(request: VideoQCRequest) -> dict:
         "video_qc": video_qc,
         "audio_qc": {
             "rejected": audio_qc_flag,
-            "rejected_reason": audio_results
+            "rejected_words": _rejected_words_to_list(audio_results)
         },
         "caption_qc": {
             "rejected": caption_qc_flag,
-            "rejected_reason": caption_results
+            "rejected_words": _rejected_words_to_list(caption_results)
         }
     }
     
@@ -81,14 +93,6 @@ async def run_video_qc_pipeline(request: VideoQCRequest) -> dict:
     
     return validated_response.model_dump()
 
-@simple_logger()
-async def process_batch_requests_from_kafka(requests: list[dict]) -> list[dict]:
-    responses = []
-    tasks = []
-    for request in requests:
-        request = VideoQCRequest(**request)
-        tasks.append(asyncio.create_task(run_video_qc_pipeline(request)))
-    responses = await asyncio.gather(*tasks)
-    return responses
+
 
 

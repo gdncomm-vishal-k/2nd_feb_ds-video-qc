@@ -91,10 +91,10 @@ You are a content compliance specialist for Blibli, an Indonesian e-commerce pla
 
         **Output Format:**
         {{
+            "CAPTION_QC_REASON": "<Return only the prohibited words or phrases found in the caption, separated by commas if there are multiple, and return "None" if no prohibited words are found.>",
             "CAPTION_QC_FLAG": "Return CAPTION_HAS_ISSUE if the input breaks any content rules, otherwise return CAPTION_NO_ISSUE.",
-            "CAPTION_QC_REASON": "<reason behind why the text is valid or invalid under 30 words>",
+            "AUDIO_QC_REASON": "<Return only the prohibited words or phrases found in the audio transcript, separated by commas if there are multiple, and return "None" if no prohibited words are found.>",
             "AUDIO_QC_FLAG": "Return AUDIO_HAS_ISSUE if the input breaks any content rules, otherwise return AUDIO_NO_ISSUE.",
-            "AUDIO_QC_REASON": "<reason behind why the text is valid or invalid under 30 words>",
         }}
 '''
 
@@ -129,18 +129,22 @@ VIDEO_QC_PREDICTION_MAP = {
 # Video QC Pipeline Config
 VIDEO_QC_TEMP_FOLDER = "./temp_videos"
 VIDEO_QC_CHUNKS = 8
-VIDEO_QC_BUCKET = "test-images-image-qc"
-VIDEO_QC_GCS_FOLDER = "Video_QC/Code_testing"
+VIDEO_QC_BUCKET = "ds-projects-data-public"
+VIDEO_QC_GCS_FOLDER = 'ds-video-qc/extracted_frames'
 VIDEO_QC_FPS = 1
 
 # Whisper Model Config
 DEVICE = "cpu"
 WHISPER_MODEL_PATH = "./model/faster_whisper_turbo_v3_large"
-WHISPER_GCS_BUCKET = "test-images-image-qc"
-WHISPER_GCS_MODEL_PATH = "Video_QC/models/faster_whisper_turbo_v3_large"
+# Full GCS URI for downloading the model (used by scripts/startup.sh)
+WHISPER_GCS_URI = "gs://ds-model-qa2/ds-video-qc/faster_whisper_turbo_v3_large"
 
 # Logging Config
 LOG_LEVEL = "INFO"  # DEBUG, INFO, WARNING, ERROR, CRITICAL
 
 FRAME_DIFF_THRESHOLD = 30 # min=0 max=255
 FRAME_RESIZE_TO = (128, 128)
+
+GUNICORN_WORKERS = 4 # number of workers to run
+GUNICORN_NUM_THREADS = 4 # number of threads per worker
+GUNICORN_BACKLOG = 50 # max number of requests that can be queued/waiting to be processed

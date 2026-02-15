@@ -13,7 +13,7 @@ from aiokafka.errors import KafkaError
 from fastapi import FastAPI, HTTPException
 from components import pub_sub
 from schemas.schemas import VideoQCRequest, VideoQCResponse
-from components.pipeline import run_video_qc_pipeline, process_batch_requests_from_kafka
+from components.pipeline import run_video_qc_pipeline
 from configs.config import (
     TF_SERVING_API_HEALTH_CHECK_URL,
     TORCH_SERVING_API_HEALTH_CHECK_URL,
@@ -22,12 +22,8 @@ from configs.config import (
 from configs.logging import simple_logger
 from configs.kafka_config import consumer_topics, producer_topic
 from components.pub_sub import PubSub
-app = FastAPI(
-    title="Video QC API",
-    description="API for Video Quality Control processing",
-    version="1.0.0"
-)
-
+from application import __version__
+app = FastAPI(title="ds-video-qc", version=__version__)
 global pubsub, task
 
 @app.on_event("startup")
@@ -59,13 +55,19 @@ async def on_app_exit():
         await pubsub.consumer.stop()
         await pubsub.producer.stop()
 
-
-
-
 @app.get("/sys-info/health")
 def health_check():
     logging.info("inside health check url")
-    return {"Status": "Healthy"}
+    return {"version": __version__, "status": "UP"}
+
+@simple_logger()
+async def process_batch_requests_from_kafka(requests: list[dict]) -> list[dict]:
+    responses = []
+    tasks = []
+    for request in requests:
+        tasks.append(asyncio.create_task(predict(request)))
+    responses = await asyncio.gather(*tasks)
+    return responses
 
 @simple_logger()
 async def check_service(url: str) -> bool:
@@ -97,7 +99,7 @@ async def dependent_services_health_check():
     }
 
 @app.post("/predict", response_model=VideoQCResponse)
-async def predict(request: VideoQCRequest):
+async def predict(request: VideoQCRequest) -> VideoQCResponse:
     try:
         dependent_services_health = await dependent_services_health_check()
         if dependent_services_health.get('cigarette_api') and dependent_services_health.get('tf_serving') and dependent_services_health.get('torch_serving'):

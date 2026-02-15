@@ -16,6 +16,7 @@ from schemas.schemas import (
 # ----- Realistic samples (from your examples) -----
 
 VALID_REQUEST = {
+    "request_id": "12345678910",
     "sku_id": ["BRO-70057-00002-00001", "BRO-70057-00002-00002"],
     "caption": "bullshit",
     "video_id": "a66e342b-f4bf-471c-8810-e1157a8e677e",
@@ -23,6 +24,7 @@ VALID_REQUEST = {
 }
 
 VALID_RESPONSE = {
+    "request_id": "12345678910",
     "sku_id": ["BRO-70057-00002-00001", "BRO-70057-00002-00002"],
     "caption": "bullshit",
     "video_id": "a66e342b-f4bf-471c-8810-e1157a8e677e",
@@ -41,11 +43,11 @@ VALID_RESPONSE = {
     },
     "audio_qc": {
         "rejected": False,
-        "rejected_reason": "The audio transcript does not contain any prohibited words or phrases.",
+        "rejected_words": [None],
     },
     "caption_qc": {
         "rejected": True,
-        "rejected_reason": "The caption contains the prohibited word 'bullshit'.",
+        "rejected_words": ["bullshit"],
     },
 }
 
@@ -55,6 +57,7 @@ VALID_RESPONSE = {
 # ---------------------------------------------------------------------------
 def test_video_qc_request_valid():
     req = VideoQCRequest(**VALID_REQUEST)
+    assert req.request_id == VALID_REQUEST["request_id"]
     assert req.sku_id == VALID_REQUEST["sku_id"]
     assert req.caption == VALID_REQUEST["caption"]
     assert req.video_id == VALID_REQUEST["video_id"]
@@ -111,24 +114,24 @@ def test_video_qc_request_invalid_video_path_too_long():
 # AudioQC
 # ---------------------------------------------------------------------------
 def test_audio_qc_valid():
-    audio = AudioQC(rejected=False, rejected_reason="No issues.")
+    audio = AudioQC(rejected=False, rejected_words=["No issues."])
     assert audio.rejected is False
-    assert audio.rejected_reason == "No issues."
+    assert audio.rejected_words == ["No issues."]
 
 
-def test_audio_qc_rejected_reason_default():
+def test_audio_qc_rejected_words_default():
     audio = AudioQC(rejected=True)
     assert audio.rejected is True
-    assert audio.rejected_reason == ""
+    assert audio.rejected_words == [None]
 
 
 # ---------------------------------------------------------------------------
 # CaptionQC
 # ---------------------------------------------------------------------------
 def test_caption_qc_valid():
-    caption = CaptionQC(rejected=True, rejected_reason="Prohibited word.")
+    caption = CaptionQC(rejected=True, rejected_words=["Prohibited word."])
     assert caption.rejected is True
-    assert caption.rejected_reason == "Prohibited word."
+    assert caption.rejected_words == ["Prohibited word."]
 
 
 # ---------------------------------------------------------------------------
@@ -136,6 +139,7 @@ def test_caption_qc_valid():
 # ---------------------------------------------------------------------------
 def test_video_qc_response_valid():
     resp = VideoQCResponse(**VALID_RESPONSE)
+    assert resp.request_id == VALID_RESPONSE["request_id"]
     assert resp.sku_id == VALID_RESPONSE["sku_id"]
     assert resp.caption == VALID_RESPONSE["caption"]
     assert resp.video_id == VALID_RESPONSE["video_id"]
@@ -143,6 +147,6 @@ def test_video_qc_response_valid():
     assert resp.video_qc == VALID_RESPONSE["video_qc"]
     assert resp.video_qc["blur"] == ["1-18"]
     assert resp.audio_qc.rejected is False
-    assert "prohibited" in resp.audio_qc.rejected_reason.lower()
+    assert resp.audio_qc.rejected_words == [None]
     assert resp.caption_qc.rejected is True
-    assert "bullshit" in resp.caption_qc.rejected_reason.lower()
+    assert resp.caption_qc.rejected_words == ["bullshit"]
