@@ -12,7 +12,7 @@ import asyncio
 from aiokafka.errors import KafkaError
 from fastapi import FastAPI, HTTPException
 from components import pub_sub
-from schemas.schemas import VideoQCRequest, VideoQCResponse
+from schemas.schemas import VideoQCRequest, VideoQCResponse, VideoQCErrorResponse
 from components.pipeline import run_video_qc_pipeline
 from configs.config import (
     TF_SERVING_API_HEALTH_CHECK_URL,
@@ -98,24 +98,30 @@ async def dependent_services_health_check():
         "cigarette_api": results[2],
     }
 
-@app.post("/predict", response_model=VideoQCResponse)
-async def predict(request: VideoQCRequest) -> VideoQCResponse:
+@app.post("/predict", response_model=VideoQCResponse | VideoQCErrorResponse)
+async def predict(request: VideoQCRequest):
     try:
         dependent_services_health = await dependent_services_health_check()
-        if dependent_services_health.get('cigarette_api') and dependent_services_health.get('tf_serving') and dependent_services_health.get('torch_serving'):
-            logging.info(f"Request: {request.model_dump()}")
-            response = await run_video_qc_pipeline(request)
-            logging.info(f"Response: {response}")
-            return response
-        else:
-            raise HTTPException(
-                500,
+        if not (dependent_services_health.get('cigarette_api') and dependent_services_health.get('tf_serving') and dependent_services_health.get('torch_serving')):
+            raise Exception(
                 "One or more dependent services are unhealthy. "
                 f"Cigarette API: {dependent_services_health.get('cigarette_api')}, "
                 f"TF Serving: {dependent_services_health.get('tf_serving')}, "
                 f"Torch Serving: {dependent_services_health.get('torch_serving')}"
             )
 
+        logging.info(f"Request: {request.model_dump()}")
+        response = await run_video_qc_pipeline(request)
+        logging.info(f"Response: {response}")
+        return response
+
     except Exception as e:
         logging.error(f"Error in predict: {e}")
-        raise HTTPException(500, f"Error in predict: {e}")
+        return VideoQCErrorResponse(
+            request_id=request.request_id,
+            sku_id=request.sku_id,
+            caption=request.caption,
+            video_id=request.video_id,
+            video_path=request.video_path,
+            error=str(e),
+        ).model_dump()

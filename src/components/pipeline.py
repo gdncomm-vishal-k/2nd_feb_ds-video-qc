@@ -16,13 +16,13 @@ from configs.logging import simple_logger
 
 
 def _rejected_words_to_list(value):
-    """Convert rejected_words string to list: [None] for None/'None', else ['word1', 'word2']."""
+    """Convert rejected_words string to list: [] for None/'None', else ['word1', 'word2']."""
     if value is None or (isinstance(value, str) and value.strip().lower() == "none"):
-        return [None]
+        return []
     if isinstance(value, str):
         parts = [p.strip() for p in value.split(",") if p.strip()]
-        return parts if parts else [None]
-    return [None]
+        return parts if parts else []
+    return []
 
 
 @simple_logger()
@@ -72,6 +72,7 @@ async def run_video_qc_pipeline(request: VideoQCRequest) -> dict:
     
     # 5. Build response
     response = {
+        "success": True,
         "request_id": request.request_id,
         "sku_id": request.sku_id,
         "caption": request.caption,
