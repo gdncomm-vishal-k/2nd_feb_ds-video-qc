@@ -101,16 +101,6 @@ pytest -m integration
 pytest --cov=src
 ```
 
-## Docker
-
-```bash
-# Build
-docker build -t ds-video-qc .
-
-# Run
-docker run -p 8080:8080 ds-video-qc
-```
-
 ## Configuration
 
 All configurable values are in `configs/config.py`:
