@@ -38,6 +38,7 @@ faster-whisper = ">=1.0"
 aiokafka = ">=0.11"
 # Utilities
 psutil = ">=5.9"
+tenacity = ">=8.2"
 
 [tool.poetry.group.dev.dependencies]
 pytest = ">=8.3"

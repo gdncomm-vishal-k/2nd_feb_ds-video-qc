@@ -1,10 +1,3 @@
-import sys
-from pathlib import Path
-
-# Add root to path for configs imports
-sys.path.insert(0, str(Path(__file__).parent.parent.parent))
-
-
 import vertexai
 import logging
 from typing import Optional
@@ -13,13 +6,13 @@ from configs.config import PROJECT_ID, REGION, GEMINI_API_KEY, GEMINI_SYSTEM_PRO
 from configs.logging import simple_logger
 vertexai.init(project=PROJECT_ID, location=REGION, api_key=GEMINI_API_KEY)
 
-@simple_logger()
+@simple_logger()    
 def get_prompt_ready(prompt: str = None, input_text: str = None) -> str:
     return f"""
     {prompt}
     predict for the input -> {input_text}
     """
-@simple_logger()
+@simple_logger()    
 async def validate_text_with_gemini(
     prompt: str = GEMINI_SYSTEM_PROMPT,
     model_name: str = GEMINI_MODEL_NAME,

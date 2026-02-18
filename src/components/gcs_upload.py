@@ -1,9 +1,4 @@
-import sys
 from pathlib import Path
-
-# Add root to path for configs imports
-sys.path.insert(0, str(Path(__file__).parent.parent.parent))
-
 import asyncio
 import aiohttp
 import google.auth
@@ -41,7 +36,7 @@ async def upload_frame(
                     f"Failed {file_path.name}: {resp.status} {text}"
                 )
 
-@simple_logger()
+@simple_logger()    
 def get_public_urls(bucket: str, gcs_base_folder: str, video_name: str, frame_paths: list[Path]) -> list[str]:
     GCS_PUBLIC_URL_PREFIX = "https://storage.googleapis.com"
     
@@ -50,7 +45,7 @@ def get_public_urls(bucket: str, gcs_base_folder: str, video_name: str, frame_pa
         for p in frame_paths
     ]
 
-@simple_logger()
+@simple_logger()    
 async def upload_frames_to_gcs(
     bucket: str,
     gcs_base_folder: str,

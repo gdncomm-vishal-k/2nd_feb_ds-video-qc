@@ -1,9 +1,3 @@
-import sys
-from pathlib import Path
-
-# Add root to path for configs imports (go up 3 levels: image_qc_utils -> components -> src -> root)
-sys.path.insert(0, str(Path(__file__).parent.parent.parent.parent))
-
 from configs.config import PROB_THRESHOLD, BLUR_LOW_HIGH, KEYWORD_PROB_THRESHOLD, RESTRICTION_MODEL_KEYWORDS, PREDICTION_MAP
 from typing import List, Dict
 
@@ -114,23 +108,6 @@ def get_medicine_logo_response(proba_result_list):
             "confidence": narkotika_confidence
         })
     return keras_responses, narkotika_responses
-
-def merge_ocr_text_results_for_restriction_models(ocr_result, text_result):
-    image_ocr_none = [i is None for i in ocr_result]
-    if any(ocr_result) or text_result:
-        return 100
-    if all(image_ocr_none) and text_result is None:
-        return None
-    return 0
-    
-def merge_ocr_text_results_for_cigarette_models(ocr_result, text_result, ocr_flag):
-    image_ocr_none = [i is None for i in ocr_result]
-    if (any(ocr_result) and ocr_flag) or (any(ocr_result) and ocr_flag is None) or text_result:
-        return 100
-    if all(image_ocr_none) and text_result is None:
-        return None
-    return 0
-
 
 def get_restricted_keyword_response(response, dsj_restricted_results, cigarette_result, alcohol_result, guns_result):
     restriction_model_resp = {}

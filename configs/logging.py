@@ -5,38 +5,51 @@ import psutil
 import os
 import traceback
 import asyncio
+from contextvars import ContextVar
 from configs.config import LOG_LEVEL
 
-logging.basicConfig(
-    level=getattr(logging, LOG_LEVEL, logging.INFO),
-    format="%(asctime)s - %(levelname)s - %(message)s"
-)
+
+# Context Variable
+request_id_var = ContextVar("request_id", default=None)
 
 
-def simple_logger(log_level=logging.INFO, request_id=None):
+class _RequestIdFilter(logging.Filter):
+    """Injects request_id from context var into every log record."""
+    def filter(self, record):
+        request_id = request_id_var.get()
+        record.request_id_prefix = f"[request_id={request_id}] " if request_id else ""
+        return True
+
+# Creates a StreamHandler — this sends log output to stderr (the console)
+_handler = logging.StreamHandler()
+# Formats the log output to include the request_id prefix
+_handler.setFormatter(logging.Formatter("%(asctime)s - %(levelname)s - %(request_id_prefix)s%(message)s"))
+# Adds the request_id prefix to the log output
+_handler.addFilter(_RequestIdFilter())
+# Adds the handler to the root logger
+logging.root.addHandler(_handler)
+# Sets the log level for the root logger
+logging.root.setLevel(getattr(logging, LOG_LEVEL, logging.INFO))
+
+
+def simple_logger(log_level=logging.INFO):
     def decorator(func):
         logger = logging.getLogger(func.__name__)
 
-        def _prefix():
-            return f"[request_id={request_id}] " if request_id else ""
-
         def _start():
-            start_time = time.time()
+            start_time = time.perf_counter()
             start_memory = None
 
             if logger.isEnabledFor(logging.DEBUG):
                 process = psutil.Process(os.getpid())
                 start_memory = process.memory_info().rss / 1024 / 1024
 
-            logger.log(
-                log_level,
-                f"{_prefix()}CALLING: {func.__name__}"
-            )
+            logger.log(log_level, f"CALLING: {func.__name__}")
             return start_time, start_memory
 
         def _end(start_time, start_memory):
             elapsed = time.time() - start_time
-            msg = f"{_prefix()}FINISHED: {func.__name__} | Time: {elapsed:.4f}s"
+            msg = f"FINISHED: {func.__name__} | Time: {elapsed:.4f}s"
 
             if logger.isEnabledFor(logging.DEBUG) and start_memory is not None:
                 process = psutil.Process(os.getpid())
@@ -46,9 +59,7 @@ def simple_logger(log_level=logging.INFO, request_id=None):
             logger.log(log_level, msg)
 
         def _handle_exception(e):
-            logger.info(
-                f"{_prefix()}ERROR in {func.__name__}: {e}"
-            )
+            logger.info(f"ERROR in {func.__name__}: {e}")
             logger.info(traceback.format_exc())
 
         @functools.wraps(func)

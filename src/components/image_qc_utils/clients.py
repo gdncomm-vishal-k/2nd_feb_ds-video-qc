@@ -1,9 +1,3 @@
-import sys
-from pathlib import Path
-
-# Add root to path for configs imports (go up 3 levels: image_qc_utils -> components -> src -> root)
-sys.path.insert(0, str(Path(__file__).parent.parent.parent.parent))
-
 import httpx
 import json
 

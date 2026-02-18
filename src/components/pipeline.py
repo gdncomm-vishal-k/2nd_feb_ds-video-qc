@@ -1,16 +1,9 @@
-import sys
 from pathlib import Path
-
-# Add src/ to path for components and schemas imports
-sys.path.insert(0, str(Path(__file__).parent.parent))
-# Add root to path for configs imports
-sys.path.insert(0, str(Path(__file__).parent.parent.parent))
-
 import shutil
 import asyncio
-from schemas.schemas import VideoQCResponse, VideoQCRequest
-from components.frame_X_audio_extraction import process_video_pipeline
-from components.frame_X_audio_validation import validate_frames_with_audio_and_caption
+from ..schemas.schemas import VideoQCResponse, VideoQCRequest
+from .frame_X_audio_extraction import process_video_pipeline
+from .frame_X_audio_validation import validate_frames_with_audio_and_caption
 from configs.config import VIDEO_QC_CHUNKS, VIDEO_QC_FPS, VIDEO_QC_BUCKET, VIDEO_QC_GCS_FOLDER, VIDEO_QC_TEMP_FOLDER, PREDICTIONS
 from configs.logging import simple_logger
 
@@ -26,11 +19,11 @@ def _rejected_words_to_list(value):
 
 
 @simple_logger()
-def delete_video_folder(video_folder: Path):
+def delete_video_folder(video_folder: Path) -> None:
     try:
         shutil.rmtree(video_folder)
     except Exception as e:
-        raise Exception(f"Error deleting video folder: {e}")
+        raise RuntimeError(f"Failed to delete video folder: {video_folder}") from e
 
 @simple_logger()
 async def run_video_qc_pipeline(request: VideoQCRequest) -> dict:
@@ -47,7 +40,7 @@ async def run_video_qc_pipeline(request: VideoQCRequest) -> dict:
     # 1. Process video - extract frames and audio
     frame_urls, audio_path, url_mapping = await process_video_pipeline(
         video_url=request.video_path,
-        Videos_folder=VIDEO_QC_TEMP_FOLDER,
+        videos_folder=VIDEO_QC_TEMP_FOLDER,
         chunks=VIDEO_QC_CHUNKS,
         fps=VIDEO_QC_FPS,
         bucket=VIDEO_QC_BUCKET,

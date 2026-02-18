@@ -142,9 +142,12 @@ WHISPER_GCS_URI = "gs://ds-model-qa2/ds-video-qc/faster_whisper_turbo_v3_large"
 # Logging Config
 LOG_LEVEL = "INFO"  # DEBUG, INFO, WARNING, ERROR, CRITICAL
 
-FRAME_DIFF_THRESHOLD = 30 # min=0 max=255
+FRAME_DIFF_THRESHOLD = 8 # min=0 max=255
 FRAME_RESIZE_TO = (128, 128)
 
 GUNICORN_WORKERS = 4 # number of workers to run
 GUNICORN_NUM_THREADS = 4 # number of threads per worker
 GUNICORN_BACKLOG = 50 # max number of requests that can be queued/waiting to be processed
+
+MAX_RETRY_ATTEMPTS = 10 # max number of retries for dependent services health check
+MAX_RETRY_WAIT = 15 # max wait time for dependent services health check

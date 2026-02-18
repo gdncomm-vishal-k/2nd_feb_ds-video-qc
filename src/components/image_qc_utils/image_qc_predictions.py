@@ -1,19 +1,12 @@
-import sys
-from pathlib import Path
-import re
-# Add src/ to path for components imports
-sys.path.insert(0, str(Path(__file__).parent.parent.parent))
-# Add root to path for configs imports (go up 3 levels: image_qc_utils -> components -> src -> root)
-sys.path.insert(0, str(Path(__file__).parent.parent.parent.parent))
-
 import httpx
 import asyncio
 import logging
 from typing import Dict, List, Union, Tuple
 from configs.config import PREDICTIONS, VIDEO_QC_PREDICTION_MAP
 from configs.config import IMAGE_QC_PREDICTION_BATCH_SIZE
-from components.image_qc_utils.clients import cigarette_api_post, tf_serving_post, torch_serving_post
-from components.image_qc_utils.image_qc_postprocessing import get_watermark_response, get_explicit_response, get_blur_response, get_text_ocr_response, get_logo_response, get_medicine_logo_response, get_restricted_keyword_response
+from ..frame_X_audio_extraction import get_frame_number
+from .clients import cigarette_api_post, tf_serving_post, torch_serving_post
+from .image_qc_postprocessing import get_watermark_response, get_explicit_response, get_blur_response, get_text_ocr_response, get_logo_response, get_medicine_logo_response
 
 async def call_cigarette_api(product_name, description, max_price, brand, image_path_list: List[str]) -> list:
     body = {
@@ -257,12 +250,6 @@ def filter_predictions(frame_result, predictions_list, prediction_map):
             filtered["cigarette_service"].append(pred)
     
     return filtered
-
-
-def get_frame_number(frame_name):
-    """Extract frame number from frame name like 'frame_0005.jpg' -> 5"""
-    match = re.search(r'frame_(\d+)', frame_name)
-    return int(match.group(1)) if match else 0
 
 
 def group_consecutive_frames(frame_numbers):

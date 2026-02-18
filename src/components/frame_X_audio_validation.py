@@ -1,26 +1,16 @@
-import sys
 import json
 import logging
-from pathlib import Path
-
-# Add src/ to path for components imports
-sys.path.insert(0, str(Path(__file__).parent.parent))
-# Add root to path for configs imports
-sys.path.insert(0, str(Path(__file__).parent.parent.parent))
-
 import asyncio
-from components.transcript_extraction import transcribe_audio
-from components.gemini_call import validate_text_with_gemini
-from components.image_qc_utils.image_qc_predictions import predict_frames_in_batches
+from .transcript_extraction import transcribe_audio
+from .gemini_call import validate_text_with_gemini
+from .image_qc_utils.image_qc_predictions import predict_frames_in_batches
 from configs.logging import simple_logger
 
-@simple_logger()
 def get_gemini_input_text(transcript: str, caption: str) -> str:
     return f"Transcript: {transcript}\nCaption: {caption}"
 
 @simple_logger()
 def get_llm_response_and_flag(gemini_results: str):
-    logging.info(f"Gemini results: {gemini_results}")
     postprocess_gemini_results = gemini_results.replace("`","").replace("json","")
     logging.info(f"Postprocess Gemini results: {postprocess_gemini_results}")
     try:
@@ -49,7 +39,7 @@ async def process_audio_and_caption_pipeline(audio_path , caption):
     return audio_llm_response, audio_qc_flag, caption_llm_response, caption_qc_flag
 
 
-@simple_logger()
+@simple_logger()    
 async def validate_frames_with_audio_and_caption(frame_urls=None, audio_path=None, caption=None, url_mapping=None):
     if frame_urls is None:
         raise ValueError("Frame URLs are required")

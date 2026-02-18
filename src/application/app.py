@@ -1,122 +1,124 @@
-import sys
-from pathlib import Path
-
-# Add src/ to path for components and schemas imports
-sys.path.insert(0, str(Path(__file__).parent.parent))
-# Add root to path for configs imports
-sys.path.insert(0, str(Path(__file__).parent.parent.parent))
-
+import asyncio
 import logging
 import aiohttp
-import asyncio
+from fastapi import FastAPI
 from aiokafka.errors import KafkaError
-from fastapi import FastAPI, HTTPException
-from components import pub_sub
-from schemas.schemas import VideoQCRequest, VideoQCResponse, VideoQCErrorResponse
-from components.pipeline import run_video_qc_pipeline
+from tenacity import retry, stop_after_attempt, wait_fixed
+
+from ..components import pub_sub
+from ..components.pipeline import run_video_qc_pipeline
+from ..components.pub_sub import PubSub
+from ..schemas.schemas import VideoQCRequest, VideoQCResponse, VideoQCErrorResponse
 from configs.config import (
     TF_SERVING_API_HEALTH_CHECK_URL,
     TORCH_SERVING_API_HEALTH_CHECK_URL,
-    CIGARETTE_API_HEALTH_CHECK_URL
+    CIGARETTE_API_HEALTH_CHECK_URL,
+    MAX_RETRY_ATTEMPTS,
+    MAX_RETRY_WAIT
 )
-from configs.logging import simple_logger
 from configs.kafka_config import consumer_topics, producer_topic
-from components.pub_sub import PubSub
-from application import __version__
-app = FastAPI(title="ds-video-qc", version=__version__)
-global pubsub, task
+from configs.logging import simple_logger, request_id_var
+from . import __app_name__, __version__
+
+app = FastAPI(title=__app_name__, version=__version__)
+
+pubsub: PubSub | None = None
+consumer_task: asyncio.Task | None = None
 
 @app.on_event("startup")
-async def on_startup():
-    logging.info("started kafka process.")
+async def startup():
+    global pubsub, consumer_task
+    logging.info("Starting Kafka consumer...")
 
-    global pubsub, task
     try:
-        pubsub = pub_sub.PubSub(consumer_topics, producer_topic, process_batch_requests_from_kafka)
+        pubsub = pub_sub.PubSub(
+            consumer_topics,
+            producer_topic,
+            process_batch_requests_from_kafka
+        )
+
         await pubsub.consumer.start()
         await pubsub.producer.start()
-        task = asyncio.create_task(pubsub.start_consumer())
-        logging.debug("kafka task got created")
+
+        consumer_task = asyncio.create_task(pubsub.start_consumer())
+        logging.info("Kafka consumer started successfully.")
+
     except KafkaError as e:
-        logging.error(e)
-        await pubsub.consumer.stop()
-        await pubsub.producer.stop()
-        raise Exception("stopping the server because kafka initialization failed")
-    logging.info("successfully started an async task for kafka consumption")
+        logging.error(f"Kafka startup failed: {e}")
+        raise RuntimeError("Kafka initialization failed.")
+
 
 @app.on_event("shutdown")
-async def on_app_exit():
+async def shutdown():
+    global pubsub, consumer_task
+    logging.info("Shutting down Kafka...")
 
-    logging.info("shutting down the kafka consumer task")
-    global task, pubsub
-    if task is not None:
-        task.cancel()
-    if pubsub is not None:
+    if consumer_task:
+        consumer_task.cancel()
+
+    if pubsub:
         await pubsub.consumer.stop()
         await pubsub.producer.stop()
 
+
 @app.get("/sys-info/health")
-def health_check():
-    logging.info("inside health check url")
-    return {"version": __version__, "status": "UP"}
+def health():
+    return {"service_name": __app_name__, "version": __version__, "status": "UP"}
 
-@simple_logger()
-async def process_batch_requests_from_kafka(requests: list[dict]) -> list[dict]:
-    responses = []
-    tasks = []
-    for request in requests:
-        tasks.append(asyncio.create_task(predict(request)))
-    responses = await asyncio.gather(*tasks)
-    return responses
 
-@simple_logger()
 async def check_service(url: str) -> bool:
     try:
         async with aiohttp.ClientSession() as session:
             async with session.get(url, timeout=5) as resp:
                 return resp.status == 200
-    except Exception as e:
-        raise Exception(f"Error checking service: {e}")
+    except Exception:
+        return False
 
-@simple_logger()
+
 @app.get("/sys-info/dependent-services-health-check")
 async def dependent_services_health_check():
-    """
-    Check the health of the dependent services.
-    Returns:
-        Dictionary with the health of the dependent services.
-    """
-    tasks = [
+    tf, torch, cigarette = await asyncio.gather(
         check_service(TF_SERVING_API_HEALTH_CHECK_URL),
         check_service(TORCH_SERVING_API_HEALTH_CHECK_URL),
         check_service(CIGARETTE_API_HEALTH_CHECK_URL)
-    ]
-    results = await asyncio.gather(*tasks)
+    )
+
     return {
-        "tf_serving": results[0],
-        "torch_serving" : results[1],
-        "cigarette_api": results[2],
+        "tf_serving": tf,
+        "torch_serving": torch,
+        "cigarette_api": cigarette,
     }
 
-@app.post("/predict", response_model=VideoQCResponse | VideoQCErrorResponse)
-async def predict(request: VideoQCRequest):
-    try:
-        dependent_services_health = await dependent_services_health_check()
-        if not (dependent_services_health.get('cigarette_api') and dependent_services_health.get('tf_serving') and dependent_services_health.get('torch_serving')):
-            raise Exception(
-                "One or more dependent services are unhealthy. "
-                f"Cigarette API: {dependent_services_health.get('cigarette_api')}, "
-                f"TF Serving: {dependent_services_health.get('tf_serving')}, "
-                f"Torch Serving: {dependent_services_health.get('torch_serving')}"
-            )
 
-        logging.info(f"Request: {request.model_dump()}")
+async def ensure_services_healthy():
+    health = await dependent_services_health_check()
+    if not all(health.values()):
+        raise RuntimeError(f"Dependent services unhealthy: {health}")
+
+
+@simple_logger()
+@retry(stop=stop_after_attempt(MAX_RETRY_ATTEMPTS),
+       wait=wait_fixed(MAX_RETRY_WAIT))
+async def process_batch_requests_from_kafka(requests: list[dict]) -> list[dict]:
+    await ensure_services_healthy()
+    tasks = [
+        predict_for_kafka_consumer(VideoQCRequest(**req))
+        for req in requests
+    ]
+    return await asyncio.gather(*tasks)
+
+
+@simple_logger()
+async def predict_for_kafka_consumer(request: VideoQCRequest):
+    request_id_var.set(request.request_id)
+    try:
+        logging.info(f"Kafka consumer request: {request.model_dump()}")
         response = await run_video_qc_pipeline(request)
-        logging.info(f"Response: {response}")
-        return response
+        logging.info(f"Kafka consumer response: {response}")
+        return VideoQCResponse(**response).model_dump()
 
     except Exception as e:
-        logging.error(f"Error in predict: {e}")
+        logging.error(f"Kafka prediction error: {e}")
         return VideoQCErrorResponse(
             request_id=request.request_id,
             sku_id=request.sku_id,
@@ -125,3 +127,26 @@ async def predict(request: VideoQCRequest):
             video_path=request.video_path,
             error=str(e),
         ).model_dump()
+
+
+@app.post("/predict",
+          response_model=VideoQCResponse | VideoQCErrorResponse)
+async def predict(request: VideoQCRequest):
+    request_id_var.set(request.request_id)
+    try:
+        await ensure_services_healthy()
+        logging.info(f"Request: {request.model_dump()}")
+        response = await run_video_qc_pipeline(request)
+        logging.info(f"Response: {response}")
+        return VideoQCResponse(**response)
+
+    except Exception as e:
+        logging.error(f"Predict error: {e}")
+        return VideoQCErrorResponse(
+            request_id=request.request_id,
+            sku_id=request.sku_id,
+            caption=request.caption,
+            video_id=request.video_id,
+            video_path=request.video_path,
+            error=str(e),
+        )

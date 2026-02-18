@@ -1,11 +1,4 @@
-import sys
 from pathlib import Path
-
-# Add src/ to path for components imports
-sys.path.insert(0, str(Path(__file__).parent.parent))
-# Add root to path for configs imports
-sys.path.insert(0, str(Path(__file__).parent.parent.parent))
-
 import re
 import time
 import asyncio
@@ -15,12 +8,12 @@ import numpy as np
 from PIL import Image
 from datetime import datetime
 from urllib.parse import urlparse, unquote
-from components.gcs_upload import upload_frames_to_gcs
+from .gcs_upload import upload_frames_to_gcs
 from configs.config import FRAME_DIFF_THRESHOLD, FRAME_RESIZE_TO
 from google.auth.transport.requests import Request
 
 from configs.logging import simple_logger
-@simple_logger()
+
 def get_video_name(video_url: str) -> str:
     """Extract and sanitize video name from URL."""
     path = urlparse(video_url).path
@@ -30,7 +23,7 @@ def get_video_name(video_url: str) -> str:
     name = name.replace(" ", "_")
     return name
 
-@simple_logger()
+@simple_logger()    
 async def _download_chunk(
     session: aiohttp.ClientSession,
     url: str,
@@ -48,14 +41,14 @@ async def _download_chunk(
 @simple_logger()
 async def download_video_to_disk(
     video_url: str,
-    Videos_folder: str,
+    videos_folder: str,
     chunks: int = 8,
 ) -> str:
     """
-    Downloads the video from video_url into Videos_folder.
+    Downloads the video from video_url into videos_folder.
 
     Folder structure:
-    Videos_folder/YYYYMMDD_HHMMSS_<video_name>/<video_name>.mp4
+    videos_folder/YYYYMMDD_HHMMSS_<video_name>/<video_name>.mp4
 
     Returns:
         Absolute path of the saved video file
@@ -70,7 +63,7 @@ async def download_video_to_disk(
 
     folder_name = f"{timestamp}_{nano}_{video_name}"
 
-    base_dir = Path(Videos_folder).expanduser()
+    base_dir = Path(videos_folder).expanduser()
     video_dir = base_dir / folder_name
     video_dir.mkdir(parents=True, exist_ok=True)
 
@@ -218,11 +211,11 @@ def get_globally_distinct_frames_pixel_only(frames_dir: str, diff_threshold: flo
     return distinct_frames, frame_mapping
 
 @simple_logger()
-async def process_video_pipeline(video_url, Videos_folder, chunks, fps, bucket, gcs_base_folder):
+async def process_video_pipeline(video_url, videos_folder, chunks, fps, bucket, gcs_base_folder):
     logging.info(f"Processing video pipeline for video URL: {video_url}")
     video_path, video_name = await download_video_to_disk(
         video_url=video_url,
-        Videos_folder=Videos_folder,
+        videos_folder=videos_folder,
         chunks=chunks
     )
 
