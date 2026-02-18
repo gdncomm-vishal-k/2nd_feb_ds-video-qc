@@ -3,7 +3,7 @@ from faster_whisper import WhisperModel
 import asyncio
 import logging
 from configs.logging import simple_logger
-from configs.config import DEVICE, WHISPER_MODEL_PATH
+from configs.config import DEVICE, WHISPER_MODEL_PATH, BEAM_SIZE, VAD_FILTER, LANGUAGE
 
 class WhisperModelSingleton:
     _instance = None
@@ -26,9 +26,9 @@ class WhisperModelSingleton:
     def transcribe(self, audio_path: str) -> str:
         segments, _ = self.model.transcribe(
             audio_path,
-            beam_size=1,
-            vad_filter=True,
-            language="en"
+            beam_size=BEAM_SIZE,
+            vad_filter=VAD_FILTER,
+            language=LANGUAGE,
         )
         return " ".join(seg.text.strip() for seg in segments)
 

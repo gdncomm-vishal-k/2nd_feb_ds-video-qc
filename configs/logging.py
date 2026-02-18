@@ -32,9 +32,10 @@ logging.root.addHandler(_handler)
 logging.root.setLevel(getattr(logging, LOG_LEVEL, logging.INFO))
 
 
-def simple_logger(log_level=logging.INFO):
+def simple_logger():
     def decorator(func):
         logger = logging.getLogger(func.__name__)
+        log_level = getattr(logging, LOG_LEVEL, logging.INFO)
 
         def _start():
             start_time = time.perf_counter()

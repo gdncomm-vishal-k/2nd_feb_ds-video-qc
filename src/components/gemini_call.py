@@ -19,8 +19,6 @@ async def validate_text_with_gemini(
     input_text: str = None,
 ) -> Optional[str]:
     logging.info(f"Validating text with Gemini: {input_text}")
-    if input_text is None or input_text.lower().strip() == "":
-        return "NO INPUT TEXT"
 
     prompt = get_prompt_ready(prompt, input_text)
 

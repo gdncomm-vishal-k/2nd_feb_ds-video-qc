@@ -14,7 +14,7 @@ from configs.config import (
     TORCH_SERVING_API_HEALTH_CHECK_URL,
     CIGARETTE_API_HEALTH_CHECK_URL,
     MAX_RETRY_ATTEMPTS,
-    MAX_RETRY_WAIT
+    MAX_RETRY_WAIT_DEPENDENT_SERVICES
 )
 from configs.kafka_config import consumer_topics, producer_topic
 from configs.logging import simple_logger, request_id_var
@@ -69,7 +69,7 @@ def health():
 async def check_service(url: str) -> bool:
     try:
         async with aiohttp.ClientSession() as session:
-            async with session.get(url, timeout=5) as resp:
+            async with session.get(url, timeout=MAX_RETRY_WAIT_DEPENDENT_SERVICES) as resp:
                 return resp.status == 200
     except Exception:
         return False

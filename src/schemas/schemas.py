@@ -1,5 +1,6 @@
 from typing import List, Dict, Optional
 from pydantic import BaseModel, Field, validator
+from configs import config
 import re
 
 # Request Schema
@@ -19,8 +20,8 @@ class VideoQCRequest(BaseModel):
 
     @validator("sku_id")
     def validate_sku_id_count(cls, sku_id):
-        if len(sku_id) > 30:
-            raise ValueError("sku_id must not contain more than 30 items")
+        if len(sku_id) > config.MAX_SKU_ID_COUNT:
+            raise ValueError(f"sku_id must not contain more than {config.MAX_SKU_ID_COUNT} items")
         return sku_id
 
     @validator("caption")
@@ -33,14 +34,14 @@ class VideoQCRequest(BaseModel):
     def validate_video_id_constraints(cls, video_id):
         if not video_id.strip():
             raise ValueError("video_id must not be empty")
-        if len(video_id) > 256:
-            raise ValueError("video_id must not exceed 256 characters")
+        if len(video_id) > config.MAX_VIDEO_ID_LENGTH:
+            raise ValueError(f"video_id must not exceed {config.MAX_VIDEO_ID_LENGTH} characters")
         return video_id
 
     @validator("video_path")
     def validate_video_path_constraints(cls, video_path):
-        if len(video_path) > 4096:
-            raise ValueError("video_path must not exceed 4096 characters")
+        if len(video_path) > config.MAX_VIDEO_PATH_LENGTH:
+            raise ValueError(f"video_path must not exceed {config.MAX_VIDEO_PATH_LENGTH} characters")
         if not video_path.startswith(("http://", "https://")):
             raise ValueError("video_path must start with http:// or https://")
         return video_path

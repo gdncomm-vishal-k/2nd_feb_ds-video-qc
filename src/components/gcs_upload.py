@@ -4,6 +4,7 @@ import aiohttp
 import google.auth
 from google.auth.transport.requests import Request
 from configs.logging import simple_logger
+from configs.config import GCS_PUBLIC_URL_PREFIX, MAX_CONCURRENCY, CONTENT_TYPE
 
 @simple_logger()
 async def upload_frame(
@@ -38,7 +39,6 @@ async def upload_frame(
 
 @simple_logger()    
 def get_public_urls(bucket: str, gcs_base_folder: str, video_name: str, frame_paths: list[Path]) -> list[str]:
-    GCS_PUBLIC_URL_PREFIX = "https://storage.googleapis.com"
     
     return [
         f"{GCS_PUBLIC_URL_PREFIX}/{bucket}/{gcs_base_folder}/{video_name}/{p.name}"
@@ -51,8 +51,8 @@ async def upload_frames_to_gcs(
     gcs_base_folder: str,
     video_name: str,
     frame_paths: list[Path],
-    max_concurrency: int = 32,
-    content_type: str = "image/jpeg",
+    max_concurrency: int = MAX_CONCURRENCY,
+    content_type: str = CONTENT_TYPE, # content type for GCS upload
 ):
     # ---------- Auth ----------
     creds, _ = google.auth.default(

@@ -151,3 +151,17 @@ GUNICORN_BACKLOG = 50 # max number of requests that can be queued/waiting to be 
 
 MAX_RETRY_ATTEMPTS = 10 # max number of retries for dependent services health check
 MAX_RETRY_WAIT = 15 # max wait time for dependent services health check
+
+MAX_SKU_ID_COUNT = 30 # max number of sku_id in a request
+MAX_VIDEO_ID_LENGTH = 256 # max length of video_id in a request
+MAX_VIDEO_PATH_LENGTH = 4096 # max length of video_path in a request
+
+MAX_RETRY_WAIT_DEPENDENT_SERVICES = 5 # max wait time for dependent services health check
+
+GCS_PUBLIC_URL_PREFIX = "https://storage.googleapis.com" # public url prefix for GCS
+MAX_CONCURRENCY = 32 # max concurrency for GCS upload
+CONTENT_TYPE = "image/jpeg" # content type for GCS upload
+
+BEAM_SIZE = 1 # beam size for Whisper model
+VAD_FILTER = True # VAD filter for Whisper model
+LANGUAGE = "en" # language for Whisper model
