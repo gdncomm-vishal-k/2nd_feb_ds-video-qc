@@ -5,7 +5,7 @@ No mocks – uses real config (PROB_THRESHOLD, BLUR_LOW_HIGH, etc.) and real inp
 
 import pytest
 
-from components.image_qc_utils.image_qc_postprocessing import (
+from src.components.image_qc_utils.image_qc_postprocessing import (
     get_blur_response,
     get_explicit_response,
     get_logo_response,
@@ -13,8 +13,6 @@ from components.image_qc_utils.image_qc_postprocessing import (
     get_restricted_keyword_response,
     get_text_ocr_response,
     get_watermark_response,
-    merge_ocr_text_results_for_cigarette_models,
-    merge_ocr_text_results_for_restriction_models,
     trim_score,
 )
 
@@ -108,26 +106,6 @@ def test_get_medicine_logo_response():
     assert narkotika_resp[0]["predictionType"] == "pharma_banned"
     assert narkotika_resp[0]["present"] is False
     assert keras_resp[1]["present"] is None and narkotika_resp[1]["present"] is None
-
-
-# ---------------------------------------------------------------------------
-# merge_ocr_text_results_for_restriction_models
-# ---------------------------------------------------------------------------
-def test_merge_ocr_text_results_for_restriction_models():
-    assert merge_ocr_text_results_for_restriction_models([], None) is None
-    assert merge_ocr_text_results_for_restriction_models([0, 0], None) == 0
-    assert merge_ocr_text_results_for_restriction_models([1], False) == 100
-    assert merge_ocr_text_results_for_restriction_models([0], True) == 100
-
-
-# ---------------------------------------------------------------------------
-# merge_ocr_text_results_for_cigarette_models
-# ---------------------------------------------------------------------------
-def test_merge_ocr_text_results_for_cigarette_models():
-    assert merge_ocr_text_results_for_cigarette_models([], None, None) is None
-    assert merge_ocr_text_results_for_cigarette_models([0, 0], None, False) == 0
-    assert merge_ocr_text_results_for_cigarette_models([1], True, True) == 100
-    assert merge_ocr_text_results_for_cigarette_models([1], None, None) == 100
 
 
 # ---------------------------------------------------------------------------

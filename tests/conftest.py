@@ -112,7 +112,7 @@ def mock_kafka():
     # patch("where.to.patch", what.to.replace.with)
     # "application.app.pub_sub.PubSub" = the real PubSub class as seen from the app module.
     # When the app does "pub_sub.PubSub(...)", it will get MockPubSub instead of the real class.
-    with patch("application.app.pub_sub.PubSub", MockPubSub):
+    with patch("src.application.app.pub_sub.PubSub", MockPubSub):
         # yield = "pause here and run the test; when the test finishes, come back and remove the patch."
         # So: while any test is running, the patch is active. After the test, the real PubSub is restored.
         yield
@@ -125,7 +125,7 @@ def mock_kafka():
 def client():
     # We import the app here (inside the fixture) so that it is loaded AFTER mock_kafka has run.
     # That way when the app's startup code runs and creates PubSub(...), it gets MockPubSub.
-    from application.app import app
+    from src.application.app import app
 
     # TestClient(app) creates a fake HTTP client. "with ... as c" means: when we enter this block,
     # the app's "startup" event runs (e.g. connect to Kafka – but we mocked it!). When we exit

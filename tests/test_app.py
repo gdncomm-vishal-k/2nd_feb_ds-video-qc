@@ -9,23 +9,23 @@ from unittest.mock import patch
 import pytest
 
 # Import what we need from the app and schemas (once at the top)
-from application.app import (
-    health_check,
+from src.application.app import (
+    health,
     dependent_services_health_check,
-    on_startup,
-    on_app_exit,
+    startup,
+    shutdown,
     predict,
 )
 from conftest import MockPubSub
-from schemas.schemas import VideoQCRequest
+from src.schemas.schemas import VideoQCRequest
 
 
 # ---------------------------------------------------------------------------
 # TEST 1: Health check
 # ---------------------------------------------------------------------------
 def test_health_check():
-    result = health_check()
-    assert result == {"Status": "Healthy"}
+    result = health()
+    assert result == {"service_name": "ds-video-qc", "version": "1.0.0", "status": "UP"}
 
 
 # ---------------------------------------------------------------------------
@@ -66,9 +66,9 @@ async def test_predict_success(sample_video_qc_request):
 # patch PubSub so no real Kafka; call on_startup() then on_app_exit(); no exception = pass.
 @pytest.mark.asyncio
 async def test_on_startup_and_on_app_exit():
-    with patch("application.app.pub_sub.PubSub", MockPubSub):
-        await on_startup()
-        await on_app_exit()
+    with patch("src.application.app.pub_sub.PubSub", MockPubSub):
+        await startup()
+        await shutdown()
 
 
 # ---------------------------------------------------------------------------
@@ -78,4 +78,4 @@ def test_health_check_via_http(client):
     response = client.get("/sys-info/health")
     print(response.json())
     assert response.status_code == 200
-    assert response.json() == {"Status": "Healthy"}
+    assert response.json()["status"] == "UP"

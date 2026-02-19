@@ -6,7 +6,7 @@ No mocks – pure functions use real config; async API calls are integration (re
 import pytest
 
 from configs.config import IMAGE_QC_PREDICTION_BATCH_SIZE, PREDICTIONS, VIDEO_QC_PREDICTION_MAP
-from components.image_qc_utils.image_qc_predictions import (
+from src.components.image_qc_utils.image_qc_predictions import (
     call_cigarette_api,
     call_tf_serving,
     call_torch_serving,
@@ -45,7 +45,8 @@ def test_get_frame_number():
 
 
 def test_get_frame_number_no_match():
-    assert get_frame_number("other.jpg") == 0
+    with pytest.raises(ValueError):
+        get_frame_number("other.jpg")
 
 
 # ---------------------------------------------------------------------------

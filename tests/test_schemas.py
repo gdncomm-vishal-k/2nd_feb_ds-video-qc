@@ -6,7 +6,7 @@ Uses real request/response examples; no mocks. Import schemas, build instances, 
 import pytest
 from pydantic import ValidationError
 
-from schemas.schemas import (
+from src.schemas.schemas import (
     AudioQC,
     CaptionQC,
     VideoQCRequest,
@@ -43,7 +43,7 @@ VALID_RESPONSE = {
     },
     "audio_qc": {
         "rejected": False,
-        "rejected_words": [None],
+        "rejected_words": [],
     },
     "caption_qc": {
         "rejected": True,
@@ -122,7 +122,7 @@ def test_audio_qc_valid():
 def test_audio_qc_rejected_words_default():
     audio = AudioQC(rejected=True)
     assert audio.rejected is True
-    assert audio.rejected_words == [None]
+    assert audio.rejected_words == []
 
 
 # ---------------------------------------------------------------------------
@@ -147,6 +147,6 @@ def test_video_qc_response_valid():
     assert resp.video_qc == VALID_RESPONSE["video_qc"]
     assert resp.video_qc["blur"] == ["1-18"]
     assert resp.audio_qc.rejected is False
-    assert resp.audio_qc.rejected_words == [None]
+    assert resp.audio_qc.rejected_words == []
     assert resp.caption_qc.rejected is True
     assert resp.caption_qc.rejected_words == ["bullshit"]

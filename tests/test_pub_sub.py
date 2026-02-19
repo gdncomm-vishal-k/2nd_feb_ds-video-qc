@@ -10,7 +10,7 @@ from unittest.mock import AsyncMock, MagicMock, patch
 import pytest
 
 from configs.kafka_config import consumer_topics, producer_topic
-from components.pub_sub import PubSub
+from src.components.pub_sub import PubSub
 
 
 def _make_msg(value: bytes, offset: int = 0):
@@ -28,8 +28,8 @@ def _make_msg(value: bytes, offset: int = 0):
 async def test_process_messages_empty_returns_early():
     """process_messages({}) returns without calling produce_and_commit."""
     mock_batch = AsyncMock(return_value=[])
-    with patch("components.pub_sub.AIOKafkaConsumer", MagicMock()), patch(
-        "components.pub_sub.AIOKafkaProducer", MagicMock()
+    with patch("src.components.pub_sub.AIOKafkaConsumer", MagicMock()), patch(
+        "src.components.pub_sub.AIOKafkaProducer", MagicMock()
     ):
         pubsub = PubSub(consumer_topics, producer_topic, mock_batch)
         pubsub.produce_and_commit = AsyncMock()
@@ -43,8 +43,8 @@ async def test_process_messages_empty_returns_early():
 async def test_process_messages_empty_partition_skipped():
     """process_messages({tp: []}) does not call produce_and_commit."""
     mock_batch = AsyncMock(return_value=[])
-    with patch("components.pub_sub.AIOKafkaConsumer", MagicMock()), patch(
-        "components.pub_sub.AIOKafkaProducer", MagicMock()
+    with patch("src.components.pub_sub.AIOKafkaConsumer", MagicMock()), patch(
+        "src.components.pub_sub.AIOKafkaProducer", MagicMock()
     ):
         pubsub = PubSub(consumer_topics, producer_topic, mock_batch)
         pubsub.produce_and_commit = AsyncMock()
@@ -58,8 +58,8 @@ async def test_process_messages_empty_partition_skipped():
 @pytest.mark.asyncio
 async def test_process_messages_valid_json_calls_batch_and_produce():
     """process_messages with valid JSON decodes, calls batch processor, then produce_and_commit."""
-    with patch("components.pub_sub.AIOKafkaConsumer", MagicMock()), patch(
-        "components.pub_sub.AIOKafkaProducer", MagicMock()
+    with patch("src.components.pub_sub.AIOKafkaConsumer", MagicMock()), patch(
+        "src.components.pub_sub.AIOKafkaProducer", MagicMock()
     ):
         async def fake_batch(requests):
             return [{"processed": r.get("video_id", "unknown")} for r in requests]
@@ -81,8 +81,8 @@ async def test_process_messages_valid_json_calls_batch_and_produce():
 @pytest.mark.asyncio
 async def test_process_messages_invalid_json_returns_decode_error_response():
     """process_messages with invalid JSON puts error in responses and still calls produce_and_commit."""
-    with patch("components.pub_sub.AIOKafkaConsumer", MagicMock()), patch(
-        "components.pub_sub.AIOKafkaProducer", MagicMock()
+    with patch("src.components.pub_sub.AIOKafkaConsumer", MagicMock()), patch(
+        "src.components.pub_sub.AIOKafkaProducer", MagicMock()
     ):
         async def fake_batch(requests):
             return [{"ok": True}]  # only valid requests
@@ -107,8 +107,8 @@ async def test_process_messages_invalid_json_returns_decode_error_response():
 @pytest.mark.asyncio
 async def test_process_messages_batch_exception_returns_error_per_request():
     """When process_batch_requests_from_kafka raises, responses get error payloads."""
-    with patch("components.pub_sub.AIOKafkaConsumer", MagicMock()), patch(
-        "components.pub_sub.AIOKafkaProducer", MagicMock()
+    with patch("src.components.pub_sub.AIOKafkaConsumer", MagicMock()), patch(
+        "src.components.pub_sub.AIOKafkaProducer", MagicMock()
     ):
         async def failing_batch(requests):
             raise RuntimeError("service down")
@@ -132,8 +132,8 @@ async def test_process_messages_batch_exception_returns_error_per_request():
 @pytest.mark.asyncio
 async def test_process_messages_mixed_valid_invalid_json():
     """One valid and one invalid JSON message: valid gets batch result, invalid gets decode error."""
-    with patch("components.pub_sub.AIOKafkaConsumer", MagicMock()), patch(
-        "components.pub_sub.AIOKafkaProducer", MagicMock()
+    with patch("src.components.pub_sub.AIOKafkaConsumer", MagicMock()), patch(
+        "src.components.pub_sub.AIOKafkaProducer", MagicMock()
     ):
         async def fake_batch(requests):
             assert len(requests) == 1

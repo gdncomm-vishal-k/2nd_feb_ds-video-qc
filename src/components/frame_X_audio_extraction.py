@@ -169,8 +169,8 @@ async def extract_frames_and_audio(
 
     return str(frames_dir), str(audio_path)
 
-def get_frame_number(frame_path: Path) -> int:
-    return int(frame_path.stem.split("_")[-1])
+def get_frame_number(frame_path) -> int:
+    return int(Path(frame_path).stem.split("_")[-1])
 
 @simple_logger()
 def get_globally_distinct_frames_pixel_only(frames_dir: str, diff_threshold: float = 10, resize_to=(128, 128)):

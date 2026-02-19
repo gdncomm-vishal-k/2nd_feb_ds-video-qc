@@ -7,7 +7,7 @@ import os
 
 import pytest
 
-from components.transcript_extraction import (
+from src.components.transcript_extraction import (
     WhisperModelSingleton,
     transcribe_audio,
 )

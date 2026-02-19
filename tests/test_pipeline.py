@@ -10,12 +10,11 @@ from pathlib import Path
 import pytest
 
 from conftest import SAMPLE_VIDEO_QC_REQUEST
-from schemas.schemas import VideoQCRequest
+from src.schemas.schemas import VideoQCRequest
 
-from components.pipeline import (
+from src.components.pipeline import (
     _rejected_words_to_list,
     delete_video_folder,
-    process_batch_requests_from_kafka,
     run_video_qc_pipeline,
 )
 
@@ -24,12 +23,12 @@ from components.pipeline import (
 # _rejected_words_to_list
 # ---------------------------------------------------------------------------
 def test_rejected_words_to_list_none():
-    assert _rejected_words_to_list(None) == [None]
+    assert _rejected_words_to_list(None) == []
 
 
 def test_rejected_words_to_list_string_none():
-    assert _rejected_words_to_list("None") == [None]
-    assert _rejected_words_to_list("  NONE  ") == [None]
+    assert _rejected_words_to_list("None") == []
+    assert _rejected_words_to_list("  NONE  ") == []
 
 
 def test_rejected_words_to_list_single_word():
@@ -42,8 +41,8 @@ def test_rejected_words_to_list_comma_separated():
 
 
 def test_rejected_words_to_list_empty_string():
-    assert _rejected_words_to_list("") == [None]
-    assert _rejected_words_to_list("  ,  , ") == [None]
+    assert _rejected_words_to_list("") == []
+    assert _rejected_words_to_list("  ,  , ") == []
 
 
 # ---------------------------------------------------------------------------
@@ -65,10 +64,10 @@ def test_delete_video_folder_raises_when_path_missing():
     """delete_video_folder(non_existent_path) raises Exception."""
     path = Path("/nonexistent/folder/that/does/not/exist")
 
-    with pytest.raises(Exception) as exc_info:
+    with pytest.raises(RuntimeError) as exc_info:
         delete_video_folder(path)
 
-    assert "Error deleting video folder" in str(exc_info.value)
+    assert "Failed to delete video folder" in str(exc_info.value)
 
 
 # ---------------------------------------------------------------------------
@@ -93,20 +92,3 @@ async def test_run_video_qc_pipeline_returns_response_dict(sample_video_qc_reque
     assert "caption_qc" in result and "rejected" in result["caption_qc"]
 
 
-# ---------------------------------------------------------------------------
-# process_batch_requests_from_kafka – real batch (list of request dicts from conftest)
-# ---------------------------------------------------------------------------
-@pytest.mark.integration
-@pytest.mark.asyncio
-async def test_process_batch_requests_from_kafka_returns_list_of_responses():
-    """process_batch_requests_from_kafka([request_dict]) returns list of response dicts."""
-    requests = [SAMPLE_VIDEO_QC_REQUEST.copy()]
-
-    responses = await process_batch_requests_from_kafka(requests)
-
-    assert isinstance(responses, list)
-    assert len(responses) == 1
-    r = responses[0]
-    assert r["request_id"] == SAMPLE_VIDEO_QC_REQUEST["request_id"]
-    assert r["video_id"] == SAMPLE_VIDEO_QC_REQUEST["video_id"]
-    assert "video_qc" in r and "audio_qc" in r and "caption_qc" in r

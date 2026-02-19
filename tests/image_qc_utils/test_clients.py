@@ -5,7 +5,7 @@ No mocks – real HTTP. post() tested against httpbin.org; service-specific call
 
 import pytest
 
-from components.image_qc_utils.clients import (
+from src.components.image_qc_utils.clients import (
     cigarette_api_post,
     post,
     tf_serving_post,
