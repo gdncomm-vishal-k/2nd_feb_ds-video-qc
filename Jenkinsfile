@@ -1,6 +1,6 @@
 @Library('jenkins-ci-automation@data-science-final-dec') _
 BlibliPipeline {
-  type = "pythonml"
+  type = "python39"
   application.tribe="data"
   application.squad="data-science"
   application.service_name="ds-video-qc"
