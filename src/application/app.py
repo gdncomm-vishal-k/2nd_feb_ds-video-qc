@@ -13,7 +13,7 @@ from configs.config import (
     TF_SERVING_API_HEALTH_CHECK_URL,
     TORCH_SERVING_API_HEALTH_CHECK_URL,
     CIGARETTE_API_HEALTH_CHECK_URL,
-    MAX_RETRY_ATTEMPTS,
+    MAX_RETRY_ATTEMPTS,MAX_RETRY_WAIT,
     MAX_RETRY_WAIT_DEPENDENT_SERVICES
 )
 from configs.kafka_config import consumer_topics, producer_topic

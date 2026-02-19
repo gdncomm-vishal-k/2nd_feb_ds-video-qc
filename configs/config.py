@@ -150,7 +150,7 @@ GUNICORN_NUM_THREADS = 4 # number of threads per worker
 GUNICORN_BACKLOG = 50 # max number of requests that can be queued/waiting to be processed
 
 MAX_RETRY_ATTEMPTS = 10 # max number of retries for dependent services health check
-MAX_RETRY_WAIT = 15 # max wait time for dependent services health check
+MAX_RETRY_WAIT = 15 # max wait time for any request
 
 MAX_SKU_ID_COUNT = 30 # max number of sku_id in a request
 MAX_VIDEO_ID_LENGTH = 256 # max length of video_id in a request
