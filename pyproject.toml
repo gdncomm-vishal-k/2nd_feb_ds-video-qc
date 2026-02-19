@@ -54,4 +54,8 @@ markers = [
 ]
 
 [tool.coverage.run]
-omit = ["src/components/pub_sub.py"]
+omit = [
+    "configs/*",
+    "src/components/pub_sub.py",
+    "src/application/app.py",
+]
