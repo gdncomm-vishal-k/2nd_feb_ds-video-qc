@@ -1,5 +1,5 @@
 #!/bin/bash
-
+python3 console_fetch.py
 # Go to project root directory
 cd "$(dirname "$0")/.."
 
