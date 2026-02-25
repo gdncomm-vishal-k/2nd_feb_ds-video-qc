@@ -37,7 +37,7 @@ COPY ./configs ./configs
 COPY ./image_qc ./image_qc
 COPY ./main_components ./main_components
 COPY ./src ./src
-COPY ./startup_script.sh ./startup_script.sh
+COPY ./scripts ./scripts
 
 
 ############################
@@ -71,13 +71,13 @@ COPY --from=builder /app/configs ./configs
 COPY --from=builder /app/image_qc ./image_qc
 COPY --from=builder /app/main_components ./main_components
 COPY --from=builder /app/src ./src
-COPY --from=builder /app/startup_script.sh ./startup_script.sh
+COPY --from=builder /app/scripts ./scripts
 
 RUN chown -R appuser:appuser /app \
-    && chmod +x startup_script.sh
+    && chmod +x scripts/startup.sh
 
 USER appuser
 
 EXPOSE 8080
 
-CMD ["bash", "startup_script.sh"]
+CMD ["bash", "scripts/startup.sh"]
