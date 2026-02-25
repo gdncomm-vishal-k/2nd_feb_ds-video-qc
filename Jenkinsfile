@@ -1,4 +1,4 @@
-@Library('jenkins-ci-automation@data-science-final-dec') _
+@Library('jenkins-ci-automation@data-science-python312-final-dec') _
 BlibliPipeline {
   type = "pythonml"
   application.tribe="data"
@@ -7,3 +7,8 @@ BlibliPipeline {
   sonar.serverId = "sonar9-gcp"
   modules.Analysis = null
 }
+
+
+// poetry and pip
+// cuda based application
+
