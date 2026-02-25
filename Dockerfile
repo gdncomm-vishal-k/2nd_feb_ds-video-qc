@@ -26,16 +26,11 @@ RUN apt-get update && \
     && rm -rf /var/lib/apt/lists/*
 
 COPY pyproject.toml poetry.lock ./
-
-RUN poetry export \
-      --only main \
-      --without-hashes \
-      -f requirements.txt \
-      -o requirements.txt
-
 COPY ./configs ./configs
 COPY ./src ./src
 COPY ./scripts ./scripts
+
+RUN poetry install --only main
 
 
 ############################
@@ -48,7 +43,8 @@ ARG DEBIAN_FRONTEND=noninteractive
 ENV \
   PYTHONUNBUFFERED=1 \
   PYTHONDONTWRITEBYTECODE=1 \
-  TZ=US
+  TZ=US \
+  PATH="/opt/google-cloud-sdk/bin:${PATH}"
 
 WORKDIR /app
 
@@ -61,17 +57,19 @@ RUN apt-get update && \
       curl \
     && rm -rf /var/lib/apt/lists/*
 
-RUN curl -fsSL https://sdk.cloud.google.com | bash -s -- --disable-prompts \
-    && ln -s /root/google-cloud-sdk/bin/gcloud /usr/local/bin/gcloud
+RUN curl -sSL https://dl.google.com/dl/cloudsdk/channels/rapid/downloads/google-cloud-cli-linux-x86_64.tar.gz \
+      | tar -xz -C /opt \
+    && /opt/google-cloud-sdk/install.sh --quiet --usage-reporting=false
 
 RUN useradd -m appuser
 
-COPY --from=builder /app/requirements.txt .
-RUN pip install --no-cache-dir -r requirements.txt
+COPY --from=builder /usr/local/lib/python3.12/site-packages /usr/local/lib/python3.12/site-packages
+COPY --from=builder /usr/local/bin /usr/local/bin
 
 COPY --from=builder /app/configs ./configs
 COPY --from=builder /app/src ./src
 COPY --from=builder /app/scripts ./scripts
+COPY --from=builder /app/scripts/console_fetch.py ./console_fetch.py
 
 RUN chown -R appuser:appuser /app \
     && chmod +x scripts/startup.sh
