@@ -34,8 +34,6 @@ RUN poetry export \
       -o requirements.txt
 
 COPY ./configs ./configs
-COPY ./image_qc ./image_qc
-COPY ./main_components ./main_components
 COPY ./src ./src
 COPY ./scripts ./scripts
 
@@ -60,7 +58,11 @@ RUN apt-get update && \
       ca-certificates \
       bash \
       ffmpeg \
+      curl \
     && rm -rf /var/lib/apt/lists/*
+
+RUN curl -fsSL https://sdk.cloud.google.com | bash -s -- --disable-prompts \
+    && ln -s /root/google-cloud-sdk/bin/gcloud /usr/local/bin/gcloud
 
 RUN useradd -m appuser
 
@@ -68,8 +70,6 @@ COPY --from=builder /app/requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
 COPY --from=builder /app/configs ./configs
-COPY --from=builder /app/image_qc ./image_qc
-COPY --from=builder /app/main_components ./main_components
 COPY --from=builder /app/src ./src
 COPY --from=builder /app/scripts ./scripts
 
