@@ -58,7 +58,7 @@ PROJECT_ID = ("data-science-prod-218306")
 GEMINI_API_KEY = "API_KEY_REMOVED"
 GEMINI_MODEL_NAME = 'gemini-2.0-flash-lite'
 REGION = "us-central1"
-GEMINI_MAX_OUTPUT_TOKENS = 100
+GEMINI_MAX_OUTPUT_TOKENS = 200
 GEMINI_TEMPERATURE = 0
 GEMINI_SYSTEM_PROMPT = '''
 You are a content compliance specialist for Blibli, an Indonesian e-commerce platform.
