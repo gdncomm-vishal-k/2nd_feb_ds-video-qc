@@ -49,7 +49,7 @@ def simple_logger():
             return start_time, start_memory
 
         def _end(start_time, start_memory):
-            elapsed = time.time() - start_time
+            elapsed = time.perf_counter() - start_time
             msg = f"FINISHED: {func.__name__} | Time: {elapsed:.4f}s"
 
             if logger.isEnabledFor(logging.DEBUG) and start_memory is not None:
